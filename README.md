@@ -1,73 +1,51 @@
-# Chord
+# Chordroom
 
-An offline Android songbook for practice and performance, written in Kotlin with Jetpack Compose and Material 3.
+A native, offline Android songbook built with Kotlin, Compose, Material 3 and Room. The app upgrades the original Chord package without clearing its existing library.
 
-## Included
+## Phase 2
 
-- Home with a resume-playing card, recent songs, and a session shortcut.
-- Library with Room FTS4 search across titles, artists, and lyrics; favorites; alphabetical/recent sorting.
-- Song creation, editing, deletion, personal notes, and optional external source links.
-- Reader with chord-over-lyric layout, section headings, transposition (including slash bass), capo, relative Roman numerals, text sizing, fullscreen, keep-awake, and adjustable auto-scroll.
-- Guitar diagrams for common stored voicings and piano chord-tone diagrams. Unavailable guitar voicings are identified explicitly.
-- Named setlists with song selection, reordering, removal, renaming, deletion, and previous/next song controls.
-- Android document-picker import of ChordPro/text files, ZIPs, and nested folders. Exact duplicate songs are skipped. Individual song export uses the system document picker.
-- Persistent light/dark appearance, preferred instrument, reader text size, Roman notation, and keep-awake settings using DataStore.
+- Versioned canonical songs with stable UUIDs, multiple arrangements, rich metadata, sections and exact Unicode lyric/chord segments.
+- Data-preserving Room 1→2 migration; personal favorites, notes, last-played and key offsets stored separately from song content.
+- Staged bulk import using Android's real multiple-document, recursive-folder and ZIP pickers.
+- JSON, ChordPro and TXT parsing, metadata/art previews, per-file warnings/errors, explicit review of uncertain TXT positions.
+- Source/UUID/content/metadata duplicate detection; Skip, Replace arrangement, or Import as new version.
+- Progress, cancellation, atomic import journals and safe resumption after interruptions.
+- Managed offline artwork, validated images, cached square thumbnails and deterministic placeholders.
+- Portable collection ZIP export/re-import with all arrangements and local images.
 
-Six **original demo songs** are included on first launch. No account, backend, paid API, Internet permission, or runtime storage permission is required. File access uses Android's Storage Access Framework.
+The original searchable library, favorites, editor, reader, transposition, capo, guitar/piano diagrams, Roman numerals, fullscreen, auto-scroll, notes, setlists and settings remain available. Six original demo songs are seeded only on first installation. No account, paid API, Internet permission or broad storage permission is required.
 
-## Build and install
+Read the [phase-2 format and implementation guide](docs/PHASE2.md), [canonical JSON schema](docs/song-v1.schema.json), and [actual device validation](docs/evidence/PHASE2-RESULTS.md).
 
-Requirements: JDK 17, Android SDK platform 36, and an existing Android device/emulator running API 26 or newer.
+## Build and run
 
-Set `ANDROID_HOME` to your SDK directory, or add your own ignored `local.properties` with `sdk.dir`. The Gradle wrapper is included.
+Requires JDK 17, Android SDK platform 36, and an existing Android device/emulator with API 26+. Set `ANDROID_HOME` or add an ignored `local.properties` containing `sdk.dir`.
 
 ```powershell
-.\gradlew.bat assembleDebug
+.\gradlew.bat assembleDebug testDebugUnitTest lintDebug
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 adb shell am start -n com.henry.chord/.MainActivity
 ```
 
-## Tests
+Use `install -r` to preserve data. Do not uninstall or clear storage to apply an upgrade. The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Device tests and original demo packs
 
 ```powershell
-.\gradlew.bat testDebugUnitTest
-.\gradlew.bat connectedDebugAndroidTest
-.\gradlew.bat lintDebug
+python tools/generate_demo_packs.py
+.\gradlew.bat assembleDebugAndroidTest
+adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
+adb push docs\demo-packs /sdcard/Documents/ChordroomPhase2
+adb shell am instrument -w -e class com.henry.chord.Phase2EngineTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.henry.chord.Phase2PickerTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Local tests cover transposition, Roman degrees, piano tones, ChordPro round trips, invalid input, and safe FTS queries. Device tests cover Room/FTS synchronization, file/ZIP imports, duplicate handling, saved song properties, setlist cascade deletion, and the app's principal Compose workflows. The UI test creates and removes its own song and setlist.
+These tests exercise real Room persistence, 320-song batches, repeat imports, cancellation/recovery, ZIP defenses, image copying and archive round trips. The picker suite navigates Android DocumentsUI and imports original fixtures. See the validation report for the source-unavailable cold-start test and screenshot retrieval commands. Direct ADB testing leaves the installed app and library intact; Gradle connected-test cleanup can remove its installation.
 
-The UI test writes actual full-device screenshots to the app's private `files/screenshots` directory. Retrieve them from a debug installation:
+## Import boundaries
 
-```powershell
-adb exec-out run-as com.henry.chord tar -cf - -C files screenshots > docs\screenshots.tar
-tar -xf docs\screenshots.tar -C docs
-```
+Per batch: 2,000 arrangements / 10,000 entries / 256 MB expanded. Each song is limited to 4 MB, each image to 12 MB and 32 megapixels. Supported song suffixes: `.json`, `.cho`, `.chopro`, `.chordpro`, `.pro`, `.txt`; artwork: JPG/PNG/WebP. Text must be valid UTF-8.
 
-PowerShell 7.4+ preserves native binary output for this redirect. Screenshots are checked into [docs/screenshots](docs/screenshots).
+Unknown chord strings and source directives are preserved with warnings. Ambiguous TXT spacing never becomes accepted anchors silently. Unsupported future JSON schemas fail per file while valid files remain importable. No source URI is needed after import.
 
-## Song format
-
-```text
-{title: My original song}
-{artist: Your name}
-{key: C}
-
-{comment:Verse}
-[C]Put a chord before the [G]lyric it belongs to
-[Am]Write the next line [F]here
-```
-
-Supported suffixes: `.cho`, `.chopro`, `.chordpro`, `.pro`, `.txt`. Text must be UTF-8. Plain lyrics are accepted; inline bracket notation enables chord features. Imports are bounded to 100 songs, 16 MB total, 2 MB per song, and eight folder levels. ZIPs are read in memory without extracting paths to the filesystem.
-
-Capo is independent of transposition: the reader shows the chord shapes to play and identifies the sounding key in the capo controls. Roman degrees are measured relative to the selected tonic. Source links open in the user's browser.
-
-## Current boundaries
-
-- This is a local songbook. Cloud sync, audio playback, recording, web scraping, and paid song catalogs are outside this implementation.
-- Common ChordPro section directives are supported; advanced tablature grids and arbitrary ChordPro extensions are not rendered.
-- Guitar voicings are a curated subset. Piano diagrams cover common major/minor, suspended, diminished, augmented, sixth, seventh, and ninth chord tones; they are not a complete music-theory engine.
-- Export currently covers individual song text, not a complete database/settings/setlist backup.
-- Release signing, Play Store packaging, and testing across additional Android versions remain release work.
-
-See [device validation](docs/VALIDATION.md) for the machine-specific emulator setup, evidence, and remaining verification limits.
+Collection export preserves song content and artwork. Full personal-state/settings/setlist backup remains a later phase. Release signing, additional Android/device/accessibility coverage, advanced ChordPro constructs and a complete guitar-voicing database remain outside this phase. Historical phase-1 screenshots and validation are retained under `docs/`.

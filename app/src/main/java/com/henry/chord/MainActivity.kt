@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val database = db ?: Room.databaseBuilder(applicationContext, ChordDatabase::class.java, "chord.db").build().also { db = it }
+        val database = db ?: Room.databaseBuilder(applicationContext, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2).build().also { db = it }
         setContent { ChordApp(database) }
     }
     companion object { private var db: ChordDatabase? = null }
@@ -67,16 +67,16 @@ fun ChordApp(database: ChordDatabase) {
     val dao = database.dao()
     val context = LocalContext.current
     val settings = remember { Settings(context.applicationContext) }
-    val prefs by settings.flow.collectAsState(Preferences())
+    val prefs by settings.flow.collectAsState(Preferences(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
     SideEffect {
         (context as? ComponentActivity)?.enableEdgeToEdge(
             statusBarStyle = androidx.activity.SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { prefs.dark },
             navigationBarStyle = androidx.activity.SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { prefs.dark }
         )
     }
-    val songs by dao.songs().collectAsState(emptyList())
-    val setlists by dao.setlists().collectAsState(emptyList())
-    val entries by dao.entries().collectAsState(emptyList())
+    val songs by remember(dao) { dao.librarySummaries() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
+    val setlists by remember(dao) { dao.setlists() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
+    val entries by remember(dao) { dao.entries() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -99,7 +99,7 @@ fun ChordApp(database: ChordDatabase) {
         val route = back?.destination?.route ?: "home"
         val destinations = listOf(Triple("home", "Home", Icons.Outlined.Home), Triple("library", "Library", Icons.Outlined.LibraryMusic), Triple("setlists", "Setlists", Icons.Outlined.QueueMusic), Triple("import", "Import", Icons.Outlined.FileDownload), Triple("settings", "Settings", Icons.Outlined.Tune))
         val topLevel = destinations.any { it.first == route }
-        val open: (Song) -> Unit = { song -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(lastOpened = System.currentTimeMillis())) }; nav.navigate("reader/${song.id}") }
+        val open: (Song) -> Unit = { song -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(song.id) }; nav.navigate("reader/${song.id}") }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Scaffold(containerColor = Color.Transparent, bottomBar = {
                 if (topLevel) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -109,22 +109,24 @@ fun ChordApp(database: ChordDatabase) {
                 if (!ready) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
                     composable("home") { HomeScreen(songs, setlists, entries, open, { nav.navigate("library") }, { nav.navigate("setlist/$it") }, { nav.navigate("editor/0") }, { nav.navigate("import") }) }
-                    composable("library") { LibraryScreen(dao, songs, open, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(it.copy(favorite = !it.favorite)) } }, { nav.navigate("editor/0") }) }
+                    composable("library") { LibraryScreen(dao, songs, open, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.favorite(it.id, !it.favorite) } }, { nav.navigate("editor/0") }) }
                     composable("setlists") { SetlistsScreen(setlists, entries, { nav.navigate("setlist/$it") }, { name -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { val id = dao.insertSetlist(Setlist(name = name)); nav.navigate("setlist/$id") } }) }
                     composable("setlist/{id}") { entry ->
                         val id = entry.arguments?.getString("id")?.toLongOrNull()
                         val set = setlists.find { it.id == id }
-                        if (set != null) SetlistScreen(set, songs, entries.filter { it.setlistId == id }.sortedBy { it.position }, { nav.popBackStack() }, { song -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(lastOpened = System.currentTimeMillis())) }; nav.navigate("reader/${song.id}?setlist=${set.id}") }, dao, { nav.popBackStack() })
+                        if (set != null) SetlistScreen(set, songs, entries.filter { it.setlistId == id }.sortedBy { it.position }, { nav.popBackStack() }, { song -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(song.id) }; nav.navigate("reader/${song.id}?setlist=${set.id}") }, dao, { nav.popBackStack() })
                     }
                     composable("import") { ImportScreen(dao, { nav.navigate("library") }) }
                     composable("settings") { SettingsScreen(prefs) { p -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { settings.save(p) } } }
                     composable("reader/{id}?setlist={setlist}") { entry ->
-                        val song = songs.find { it.id == entry.arguments?.getString("id")?.toLongOrNull() }
+                        val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                        val song by remember(id) { dao.observeSong(id) }.collectAsState(null, context = kotlinx.coroutines.Dispatchers.Main.immediate)
                         val setId = entry.arguments?.getString("setlist")?.toLongOrNull()
-                        if (song != null) ReaderScreen(song, prefs, setlists, entries, songs, setId, dao, { nav.popBackStack() }, { nav.navigate("editor/${song.id}") }, { next -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(next.copy(lastOpened = System.currentTimeMillis())) }; nav.navigate("reader/${next.id}?setlist=$setId") { popUpTo("reader/{id}?setlist={setlist}") { inclusive = true } } })
+                        song?.let { full -> ReaderScreen(full, prefs, setlists, entries, songs, setId, dao, { nav.popBackStack() }, { nav.navigate("editor/${full.id}") }, { next -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(next.id) }; nav.navigate("reader/${next.id}?setlist=$setId") { popUpTo("reader/{id}?setlist={setlist}") { inclusive = true } } }) }
                     }
                     composable("editor/{id}") { entry -> val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L
-                        EditorScreen(songs.find { it.id == id }, dao, { nav.popBackStack() }, { nav.navigate("library") { popUpTo("home"); launchSingleTop = true } })
+                        val full by remember(id) { dao.observeSong(id) }.collectAsState(null, context = kotlinx.coroutines.Dispatchers.Main.immediate)
+                        if (id == 0L || full != null) EditorScreen(full, dao, { nav.popBackStack() }, { nav.navigate("library") { popUpTo("home"); launchSingleTop = true } })
                     }
                 }
             }
@@ -148,9 +150,10 @@ fun SectionTitle(title: String, action: String? = null, onClick: () -> Unit = {}
 @Composable
 fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: (() -> Unit)? = null, number: String? = null) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(48.dp)) { Box(contentAlignment = Alignment.Center) { if (number != null) Text(number, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary) else Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp)) } }
+        if (number != null) Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(48.dp)) { Box(contentAlignment = Alignment.Center) { Text(number, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary) } }
+        else { val context = LocalContext.current; val path = remember(song.artworkPath, song.songUuid) { ArtworkStore(context).thumbnailPath(song.artworkPath, song.songUuid) }; LocalArtwork(path.takeIf { song.artworkPath != null }?.path, song.songUuid.ifBlank { song.title }, "Artwork for ${song.title}", Modifier.size(48.dp)) }
         Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) { Text(song.title, fontWeight = FontWeight.Medium, fontSize = 15.sp); Spacer(Modifier.height(4.dp)); Text(song.artist, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
+        Column(Modifier.weight(1f)) { Text(song.title, fontWeight = FontWeight.Medium, fontSize = 15.sp); Spacer(Modifier.height(4.dp)); Text(song.artist + if (song.arrangementName != "Main") " · ${song.arrangementName}" else "", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
         Text(Music.transpose(song.key, song.transpose, song.key.contains('b')), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp))
         if (onFavorite != null) IconButton(onClick = onFavorite) { Icon(if (song.favorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder, "Favorite ${song.title}", tint = if (song.favorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
         else Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
@@ -163,7 +166,7 @@ fun HomeScreen(songs: List<Song>, sets: List<Setlist>, entries: List<SetlistEntr
     LazyColumn(Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 30.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)); Spacer(Modifier.width(8.dp)); Text("chord", fontSize = 25.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1).sp)
+                Icon(Icons.Outlined.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)); Spacer(Modifier.width(8.dp)); Text("chordroom", fontSize = 23.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1).sp)
                 Spacer(Modifier.weight(1f)); Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(100.dp)) { Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.OfflineBolt, null, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(5.dp)); Text("ALL OFFLINE", fontSize = 9.sp, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.primary) } }
             }
             Eyebrow("A little practice. A little progress.")
@@ -200,8 +203,8 @@ fun EmptyState(title: String, body: String, action: String, onClick: () -> Unit)
 @Composable
 fun LibraryScreen(dao: ChordDao, all: List<Song>, open: (Song) -> Unit, favorite: (Song) -> Unit, add: () -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }; var onlyFavorites by rememberSaveable { mutableStateOf(false) }; var sort by rememberSaveable { mutableStateOf(false) }
-    val flow = remember(query) { SongImport.searchQuery(query).let { if (it.isEmpty()) dao.songs() else dao.search(it) } }
-    val found by flow.collectAsState(emptyList())
+    val flow = remember(query) { SongImport.searchQuery(query).let { if (it.isEmpty()) dao.librarySummaries() else dao.searchSummaries(it) } }
+    val found by flow.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
     val songs = (if (query.isBlank()) all else found).filter { !onlyFavorites || it.favorite }.let { if (sort) it.sortedByDescending { s -> s.lastOpened } else it }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { PageTitle("Your library", "${all.size} songs. Endless possibilities.") { FilledTonalIconButton(add) { Icon(Icons.Outlined.Add, "New song") } }

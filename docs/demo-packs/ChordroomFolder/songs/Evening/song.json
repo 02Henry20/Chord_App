@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "songId": "9511430e-5390-58f3-8b53-f48eeb99c66a",
+  "title": "Folder original 001",
+  "artist": "Chordroom Originals",
+  "album": "Local Sessions",
+  "year": 2026,
+  "language": "en",
+  "genre": "acoustic",
+  "tags": [
+    "demo",
+    "original"
+  ],
+  "artwork": {
+    "path": "assets/cover.png",
+    "credit": "Generated original gradient · Chordroom"
+  },
+  "musicLinks": {
+    "spotifyTrackUrl": null,
+    "youtubeVideoUrl": null
+  },
+  "arrangements": [
+    {
+      "arrangementId": "1761efe8-02b1-5d09-ad2b-a320ad2d6407",
+      "name": "Acoustic",
+      "originalKey": "G",
+      "tonalMode": "major",
+      "tempoBpm": 96,
+      "timeSignature": "4/4",
+      "sourceId": "chordroom-original:Folder:1",
+      "sourceFormat": "json",
+      "provenance": "Original test pack",
+      "licenseNotes": "Original demonstration material, free to use",
+      "sections": [
+        {
+          "id": "Folder-1-v1",
+          "type": "verse",
+          "label": "Verse 1",
+          "lines": [
+            {
+              "segments": [
+                {
+                  "text": "Under the "
+                },
+                {
+                  "chord": "G",
+                  "text": "evening lights, "
+                },
+                {
+                  "chord": "D/F#",
+                  "text": "we sing"
+                }
+              ]
+            },
+            {
+              "segments": [
+                {
+                  "chord": "Em7",
+                  "text": "é 👩🏽‍🎤 東京  "
+                },
+                {
+                  "chord": "C",
+                  "text": "stay here "
+                }
+              ]
+            },
+            {
+              "segments": []
+            },
+            {
+              "segments": [
+                {
+                  "chord": "G",
+                  "text": ""
+                },
+                {
+                  "chord": "D",
+                  "text": ""
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Folder-1-c1",
+          "type": "chorus",
+          "label": "Chorus",
+          "lines": [
+            {
+              "segments": [
+                {
+                  "chord": "G",
+                  "text": "Stay here "
+                },
+                {
+                  "chord": "D",
+                  "text": "with me"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

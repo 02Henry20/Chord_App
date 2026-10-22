@@ -69,26 +69,6 @@ fun SetlistScreen(set: Setlist, songs: List<Song>, entries: List<SetlistEntry>, 
 }
 
 @Composable
-fun ImportScreen(dao: ChordDao, library: () -> Unit) {
-    val context = LocalContext.current; val scope = rememberCoroutineScope(); val manager = remember { ImportManager(context, dao) }
-    var status by rememberSaveable { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
-    val documents = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { busy = true; status = runCatching { manager.files(uris) }.getOrElse { "Import failed: ${it.message}" }; busy = false } }
-    val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> if (uri != null) scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { busy = true; status = runCatching { manager.folder(uri) }.getOrElse { "Import failed: ${it.message}" }; busy = false } }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-        PageTitle("Bring your songs.", "Your collection belongs with you.")
-        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) { Column(Modifier.fillMaxWidth().padding(24.dp)) { Icon(Icons.Outlined.LibraryAdd, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)); Spacer(Modifier.height(24.dp)); Text("From files to first chords.", fontFamily = Serif, fontSize = 28.sp); Text("Import ChordPro or plain text chord sheets. Everything stays on your device.", fontSize = 14.sp, lineHeight = 22.sp, modifier = Modifier.padding(top = 12.dp)) } }
-        Spacer(Modifier.height(24.dp))
-        Button({ documents.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = !busy) { Icon(Icons.Outlined.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Choose files or ZIP") }
-        OutlinedButton({ folder.launch(null) }, Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 52.dp), enabled = !busy) { Icon(Icons.Outlined.FolderOpen, null); Spacer(Modifier.width(8.dp)); Text("Choose a folder") }
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 20.dp))
-        if (status.isNotBlank()) { Text(status, Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.primary); TextButton(library) { Text("View library") } }
-        SectionTitle("A few useful notes")
-        Text(".cho · .chopro · .chordpro · .pro · .txt\n\nZIP archives and nested folders are supported. Import up to 100 songs / 16 MB at a time, with a 2 MB limit per song. Exact duplicates are skipped.\n\nPlace chords in brackets, like [Am], before a lyric. Use {comment:Chorus} for section headings. Only import material you have the right to use.", fontSize = 13.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(30.dp))
-    }
-}
-
-@Composable
 fun SettingsScreen(prefs: Preferences, save: (Preferences) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
         PageTitle("Make it yours.", "Small adjustments. Better sessions.")
@@ -118,9 +98,9 @@ fun EditorScreen(song: Song?, dao: ChordDao, back: () -> Unit, deleted: () -> Un
     var error by remember { mutableStateOf("") }; var deleting by remember { mutableStateOf(false) }; var saving by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(back) { Icon(Icons.Outlined.Close, "Cancel editing") }; Text(if (song == null) "New song" else "Edit song", Modifier.weight(1f), fontFamily = Serif, fontSize = 24.sp); Button({
-            if (!Regex("[A-G][#b]?m?").matches(key.trim())) error = "Enter a key such as C, F# or Am."
+            if (key.isNotBlank() && !Regex("[A-G][#b]?m?").matches(key.trim())) error = "Enter a key such as C, F# or Am, or leave it unknown."
             else if (source.isNotBlank() && !source.startsWith("https://") && !source.startsWith("http://")) error = "Source links must begin with https:// or http://."
-            else { saving = true; scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { runCatching { val updated = (song ?: Song(title = "", body = "")).copy(title = title.trim(), artist = artist.trim().ifBlank { "Original" }, key = key.trim(), body = body.trim(), notes = notes, source = source.trim()); if (song == null) dao.insert(updated) else dao.update(updated) }.onSuccess { back() }.onFailure { error = it.message ?: "Save failed"; saving = false } } }
+            else { saving = true; scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { runCatching { val updated = (song ?: Song(title = "", body = "")).copy(title = title.trim(), artist = artist.trim().ifBlank { "Original" }, key = key.trim(), body = body, notes = notes, source = source.trim()); if (song == null) dao.insert(updated) else dao.update(updated) }.onSuccess { back() }.onFailure { error = it.message ?: "Save failed"; saving = false } } }
         }, enabled = title.isNotBlank() && body.isNotBlank() && !saving) { Text("Save") } }
         Text("A song starts with a few words.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(vertical = 18.dp))
         OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text("Song title") }, singleLine = true)

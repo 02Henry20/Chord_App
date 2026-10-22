@@ -105,7 +105,12 @@ class AppTest {
     }
 
     @Test fun roomSearchImportAndPersistence(): Unit = runBlocking {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val testRoot = File(base.cacheDir, "legacy-test-${Canonical.uuid()}")
+        val context = object : android.content.ContextWrapper(base) {
+            override fun getFilesDir() = File(testRoot, "files").apply { mkdirs() }
+            override fun getCacheDir() = File(testRoot, "cache").apply { mkdirs() }
+        }
         val database = Room.inMemoryDatabaseBuilder(context, ChordDatabase::class.java).build()
         val dao = database.dao()
         try {
@@ -128,6 +133,6 @@ class AppTest {
             assertTrue(dao.entries().first().isEmpty())
             assertTrue(dao.search(SongImport.searchQuery("Silver")).first().isEmpty())
             fixture.delete(); zip.delete()
-        } finally { database.close() }
+        } finally { database.close(); testRoot.deleteRecursively() }
     }
 }

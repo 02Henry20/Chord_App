@@ -1,0 +1,3 @@
+# Fixtures deliberately exercise exact trailing lyric whitespace; evidence keeps verbatim tool output.
+docs/demo-packs/** -whitespace
+docs/evidence/*-output.txt -whitespace

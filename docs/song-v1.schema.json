@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chordroom:song:v1",
+  "title": "Chordroom canonical song, version 1",
+  "type": "object",
+  "required": ["schemaVersion", "songId", "title", "artist", "arrangements"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "songId": {"type": "string", "format": "uuid"},
+    "title": {"type": "string", "minLength": 1},
+    "artist": {"type": "string"},
+    "album": {"type": ["string", "null"]},
+    "year": {"type": ["integer", "null"]},
+    "language": {"type": ["string", "null"]},
+    "genre": {"type": ["string", "null"]},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "artwork": {"type": ["object", "null"], "properties": {
+      "path": {"type": ["string", "null"], "description": "Safe local relative asset reference. Never an absolute path or parent traversal."},
+      "sourceUrl": {"type": ["string", "null"]}, "credit": {"type": ["string", "null"]}
+    }},
+    "musicLinks": {"type": "object", "properties": {
+      "spotifyTrackUrl": {"type": ["string", "null"]}, "youtubeVideoUrl": {"type": ["string", "null"]}
+    }},
+    "arrangements": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/$defs/arrangement"}}
+  },
+  "$defs": {
+    "arrangement": {
+      "type": "object", "required": ["arrangementId", "name", "sections"],
+      "properties": {
+        "arrangementId": {"type": "string", "format": "uuid"}, "name": {"type": "string"},
+        "originalKey": {"type": ["string", "null"], "pattern": "^[A-G](#|b)?m?$"},
+        "tonalMode": {"enum": ["major", "minor", null]},
+        "tempoBpm": {"type": ["number", "null"], "minimum": 10, "maximum": 500},
+        "timeSignature": {"type": ["string", "null"]},
+        "sourceId": {"type": ["string", "null"]}, "sourceFormat": {"type": ["string", "null"]},
+        "provenance": {"type": ["string", "null"]}, "licenseNotes": {"type": ["string", "null"]}, "comments": {"type": ["string", "null"]},
+        "sections": {"type": "array", "items": {"$ref": "#/$defs/section"}}
+      }
+    },
+    "section": {
+      "type": "object", "required": ["id", "type", "label", "lines"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "type": {"enum": ["intro", "verse", "prechorus", "chorus", "postchorus", "bridge", "instrumental", "solo", "outro", "custom"]},
+        "label": {"type": "string"}, "lines": {"type": "array", "items": {"$ref": "#/$defs/line"}}
+      }
+    },
+    "line": {
+      "type": "object", "required": ["id", "segments"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "annotation": {"type": ["string", "null"]},
+        "segments": {"type": "array", "items": {"$ref": "#/$defs/segment"}}
+      }
+    },
+    "segment": {
+      "type": "object", "required": ["id", "text"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "text": {"type": "string", "pattern": "^[^\\r\\n]*$", "description": "Exact Unicode text. Anchor applies BEFORE this text; empty text supports chord-only rows and consecutive chords."},
+        "anchor": {"$ref": "#/$defs/anchor"}
+      }
+    },
+    "anchor": {
+      "type": "object", "required": ["id", "rawChord"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "rawChord": {"type": "string", "minLength": 1, "maxLength": 128},
+        "beat": {"type": ["number", "null"], "minimum": 0}, "measure": {"type": ["integer", "null"], "minimum": 0},
+        "annotations": {"type": ["string", "null"], "description": "Verbatim source annotations, including unsupported notation."}
+      }
+    }
+  }
+}

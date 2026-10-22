@@ -1,56 +1,9 @@
 package com.henry.chord
 
 import android.content.Context
-import androidx.room.*
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.*
-
-@Entity(tableName = "songs")
-data class Song(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val title: String, val artist: String = "Original", val key: String = "C",
-    val body: String, val favorite: Boolean = false, val notes: String = "",
-    val transpose: Int = 0, val capo: Int = 0, val lastOpened: Long = 0,
-    val source: String = ""
-)
-
-@Fts4(contentEntity = Song::class)
-@Entity(tableName = "song_search")
-data class SongSearch(val title: String, val artist: String, val body: String)
-
-@Entity(tableName = "setlists")
-data class Setlist(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String)
-
-@Entity(tableName = "setlist_entries", primaryKeys = ["setlistId", "songId"], foreignKeys = [
-    ForeignKey(entity = Song::class, parentColumns = ["id"], childColumns = ["songId"], onDelete = ForeignKey.CASCADE),
-    ForeignKey(entity = Setlist::class, parentColumns = ["id"], childColumns = ["setlistId"], onDelete = ForeignKey.CASCADE)
-], indices = [Index("songId")])
-data class SetlistEntry(val setlistId: Long, val songId: Long, val position: Int)
-
-@Dao
-interface ChordDao {
-    @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE") fun songs(): Flow<List<Song>>
-    @Query("SELECT songs.* FROM songs JOIN song_search ON songs.id = song_search.rowid WHERE song_search MATCH :query ORDER BY title COLLATE NOCASE")
-    fun search(query: String): Flow<List<Song>>
-    @Query("SELECT * FROM setlists ORDER BY id") fun setlists(): Flow<List<Setlist>>
-    @Query("SELECT * FROM setlist_entries ORDER BY position") fun entries(): Flow<List<SetlistEntry>>
-    @Insert suspend fun insert(song: Song): Long
-    @Update suspend fun update(song: Song)
-    @Delete suspend fun delete(song: Song)
-    @Insert suspend fun insertSetlist(setlist: Setlist): Long
-    @Update suspend fun updateSetlist(setlist: Setlist)
-    @Delete suspend fun deleteSetlist(setlist: Setlist)
-    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun addEntry(entry: SetlistEntry)
-    @Query("DELETE FROM setlist_entries WHERE setlistId = :id AND songId = :songId") suspend fun removeEntry(id: Long, songId: Long)
-    @Update suspend fun updateEntries(entries: List<SetlistEntry>)
-    @Query("SELECT COUNT(*) FROM songs") suspend fun count(): Int
-    @Query("SELECT COUNT(*) FROM songs WHERE title = :title AND artist = :artist AND body = :body") suspend fun duplicateCount(title: String, artist: String, body: String): Int
-    @Transaction suspend fun reorder(entries: List<SetlistEntry>) = updateEntries(entries.mapIndexed { i, e -> e.copy(position = i) })
-}
-
-@Database(entities = [Song::class, SongSearch::class, Setlist::class, SetlistEntry::class], version = 1, exportSchema = true)
-abstract class ChordDatabase : RoomDatabase() { abstract fun dao(): ChordDao }
 
 val Context.preferences by preferencesDataStore("preferences")
 data class Preferences(val dark: Boolean = false, val instrument: String = "Guitar", val fontSize: Int = 19, val keepAwake: Boolean = true, val roman: Boolean = false)

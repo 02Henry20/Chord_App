@@ -8,6 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -31,7 +34,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: List<SetlistEntry>, songs: List<Song>, setId: Long?, dao: ChordDao, back: () -> Unit, edit: () -> Unit, next: (Song) -> Unit) {
     val scope = rememberCoroutineScope(); val context = LocalContext.current; val uriHandler = LocalUriHandler.current
-    val scroll = rememberScrollState()
+    val scroll = rememberLazyListState()
+    val canonical = remember(song.documentJson, song.body) { runCatching { Canonical.decode(song.documentJson).single().document.arrangements.single() }.getOrElse { SheetParser.parse(song.body, "song.cho").document.arrangements.single() } }
     var fullscreen by rememberSaveable { mutableStateOf(false) }; var scrolling by rememberSaveable { mutableStateOf(false) }; var speed by rememberSaveable { mutableFloatStateOf(22f) }; var font by rememberSaveable { mutableIntStateOf(prefs.fontSize) }; var roman by rememberSaveable { mutableStateOf(prefs.roman) }; var selectedChord by remember { mutableStateOf<String?>(null) }; var addToSet by remember { mutableStateOf(false) }; var controls by rememberSaveable { mutableStateOf(false) }; var message by remember { mutableStateOf("") }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { message = runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(SongImport.export(song).toByteArray()) } ?: error("Cannot write file"); "Song exported" }.getOrElse { "Export failed: ${it.message}" } }
@@ -49,13 +53,15 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
     LaunchedEffect(scrolling, speed) {
         while (scrolling) {
             delay(32)
-            if (scroll.maxValue > 0 && scroll.value >= scroll.maxValue) { scrolling = false; break }
-            scroll.dispatchRawDelta(speed * .032f)
+            if (!scroll.canScrollForward) { scrolling = false; break }
+            scroll.scrollBy(speed * .032f)
         }
     }
     val flats = song.key.contains('b') || song.key in listOf("F", "Dm")
     val key = Music.transpose(song.key, song.transpose, flats)
-    val chords = Music.chords(song.body).map { Music.transpose(it, song.transpose, flats) }
+    val chords = canonical.sections.flatMap { it.lines }.flatMap { it.segments }.mapNotNull { it.anchor?.rawChord }.distinct().map { Music.transpose(it, song.transpose, flats) }
+    val versions = songs.filter { it.songUuid == song.songUuid }
+    var versionMenu by remember { mutableStateOf(false) }
     val queue = entries.filter { it.setlistId == setId }.sortedBy { it.position }.mapNotNull { e -> songs.find { it.id == e.songId } }
     val queueIndex = queue.indexOfFirst { it.id == song.id }
     Column(Modifier.fillMaxSize()) {
@@ -71,6 +77,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
                 Eyebrow("Your songbook")
                 Text(song.title, fontFamily = Serif, fontSize = 32.sp, modifier = Modifier.padding(top = 8.dp))
                 Text(song.artist, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
+                if (versions.size > 1) Box { TextButton({ versionMenu = true }) { Text("${song.arrangementName} · ${versions.size} versions"); Icon(Icons.Outlined.ExpandMore, null) }; DropdownMenu(versionMenu, { versionMenu = false }) { versions.forEach { version -> DropdownMenuItem(text = { Text("${version.arrangementName} · ${version.key.ifBlank { "Unknown key" }} · ${version.arrangementUuid.take(6)}") }, onClick = { versionMenu = false; next(version) }) } } }
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(transpose = song.transpose - 1)) } }) { Icon(Icons.Outlined.Remove, "Transpose down") }
@@ -92,20 +99,17 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
                 }
             }
         }
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = 24.dp, vertical = if (fullscreen) 28.dp else 10.dp)) {
-            if (fullscreen) { Text(song.title, fontFamily = Serif, fontSize = 25.sp); Spacer(Modifier.height(24.dp)) }
-            song.body.lines().forEach { line ->
-                val heading = Regex("\\{(?:comment|c|start_of_chorus|soc|start_of_verse|sov)(?::\\s*([^}]*))?\\}", RegexOption.IGNORE_CASE).matchEntire(line.trim())
-                when {
-                    line.isBlank() -> Spacer(Modifier.height(16.dp))
-                    heading != null -> { Spacer(Modifier.height(14.dp)); Text(heading.groupValues[1].ifBlank { if (line.contains("chorus") || line.contains("soc")) "Chorus" else "Verse" }.uppercase(), fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp)) }
-                    line.trim().startsWith("{") -> Unit
-                    else -> ChordLine(line, song.transpose, flats, roman, key, font, { selectedChord = it })
-                }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp), state = scroll, contentPadding = PaddingValues(vertical = if (fullscreen) 28.dp else 10.dp)) {
+            if (fullscreen) item { Text(song.title, fontFamily = Serif, fontSize = 25.sp); Spacer(Modifier.height(24.dp)) }
+            canonical.sections.forEach { section ->
+                if (section.label.isNotEmpty()) item(key = "section-${section.id}") { Spacer(Modifier.height(14.dp)); Text(section.label.uppercase(), fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp)) }
+                section.lines.forEach { line -> item(key = "line-${line.id}") { CanonicalSheetLine(line, song.transpose, flats, roman, key, font) { selectedChord = it } } }
             }
+            item {
             if (song.notes.isNotBlank()) { Spacer(Modifier.height(24.dp)); Eyebrow("Your notes"); Text(song.notes, fontSize = 14.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp)) }
             if (song.source.startsWith("https://") || song.source.startsWith("http://")) TextButton({ runCatching { uriHandler.openUri(song.source) }.onFailure { message = "No browser is available." } }) { Text("Open source link"); Icon(Icons.Outlined.OpenInNew, null, Modifier.size(16.dp)) }
             Spacer(Modifier.height(50.dp)); Eyebrow("End of song")
+            }
         }
         if (message.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) { Text(message, Modifier.weight(1f), fontSize = 12.sp); TextButton({ message = "" }) { Text("Dismiss") } }
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
@@ -130,6 +134,23 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
     }
     if (selectedChord != null) ChordDialog(selectedChord!!, prefs.instrument, { selectedChord = null })
     if (addToSet) AlertDialog(onDismissRequest = { addToSet = false }, title = { Text("Add to setlist", fontFamily = Serif) }, text = { Column { if (sets.isEmpty()) Text("Create a setlist from the Setlists tab first."); sets.forEach { set -> val exists = entries.any { it.setlistId == set.id && it.songId == song.id }; TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.addEntry(SetlistEntry(set.id, song.id, (entries.filter { it.setlistId == set.id }.maxOfOrNull { it.position } ?: -1) + 1)) }; addToSet = false; message = "Added to ${set.name}" }, enabled = !exists) { Text(set.name + if (exists) " · Added" else "") } } } }, confirmButton = { TextButton({ addToSet = false }) { Text("Done") } })
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CanonicalSheetLine(line: SheetLine, transpose: Int, flats: Boolean, roman: Boolean, key: String, font: Int, click: (String) -> Unit) {
+    if (line.annotation != null) { Text(line.annotation, fontSize = (font - 3).sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp)); return }
+    if (line.segments.all { it.text.isEmpty() && it.anchor == null }) { Spacer(Modifier.height(16.dp)); return }
+    FlowRow(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        line.segments.forEach { segment ->
+            val chord = segment.anchor?.rawChord?.let { Music.transpose(it, transpose, flats) }
+            Column(Modifier.widthIn(min = if (chord != null) 48.dp else 0.dp).heightIn(min = 48.dp).then(if (chord != null) Modifier.clickable { click(chord) } else Modifier)) {
+                if (chord != null) Text(if (roman && key.isNotBlank()) Music.roman(chord, key) else chord, color = MaterialTheme.colorScheme.primary, fontSize = (font - 3).sp, fontWeight = FontWeight.Bold, modifier = Modifier.heightIn(min = 28.dp).padding(end = 6.dp))
+                else Spacer(Modifier.height(28.dp))
+                Text(segment.text, fontSize = font.sp, lineHeight = (font + 8).sp)
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

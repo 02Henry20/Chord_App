@@ -9,4 +9,7 @@ emulator*.log
 device-tests.log
 local-tests.log
 manual-device-tests.log
+.local-backup/
+phase2-*.log
+docs/evidence/*.tar
 docs/screenshots.tar
