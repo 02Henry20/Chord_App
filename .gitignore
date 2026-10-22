@@ -1,0 +1,12 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+captures/
+emulator*.log
+device-tests.log
+local-tests.log
+manual-device-tests.log
+docs/screenshots.tar
