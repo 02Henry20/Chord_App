@@ -20,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +38,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
     val scope = rememberCoroutineScope(); val context = LocalContext.current; val uriHandler = LocalUriHandler.current
     val scroll = rememberLazyListState()
     val canonical = remember(song.documentJson, song.body) { runCatching { Canonical.decode(song.documentJson).single().document.arrangements.single() }.getOrElse { SheetParser.parse(song.body, "song.cho").document.arrangements.single() } }
-    var fullscreen by rememberSaveable { mutableStateOf(false) }; var scrolling by rememberSaveable { mutableStateOf(false) }; var speed by rememberSaveable { mutableFloatStateOf(22f) }; var font by rememberSaveable { mutableIntStateOf(prefs.fontSize) }; var roman by rememberSaveable { mutableStateOf(prefs.roman) }; var selectedChord by remember { mutableStateOf<String?>(null) }; var addToSet by remember { mutableStateOf(false) }; var controls by rememberSaveable { mutableStateOf(false) }; var message by remember { mutableStateOf("") }
+    var fullscreen by rememberSaveable { mutableStateOf(false) }; var scrolling by rememberSaveable { mutableStateOf(false) }; var speed by rememberSaveable { mutableFloatStateOf(22f) }; var font by rememberSaveable { mutableIntStateOf(prefs.fontSize) }; var labelMode by rememberSaveable(song.id, prefs.chordLabels) { mutableStateOf(prefs.chordLabels) }; var selectedChord by remember { mutableStateOf<String?>(null) }; var addToSet by remember { mutableStateOf(false) }; var controls by rememberSaveable { mutableStateOf(false) }; var message by remember { mutableStateOf("") }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { message = runCatching { context.contentResolver.openOutputStream(uri)?.use { it.write(SongImport.export(song).toByteArray()) } ?: error("Cannot write file"); "Song exported" }.getOrElse { "Export failed: ${it.message}" } }
     }
@@ -57,9 +59,13 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
             scroll.scrollBy(speed * .032f)
         }
     }
-    val flats = song.key.contains('b') || song.key in listOf("F", "Dm")
-    val key = Music.transpose(song.key, song.transpose, flats)
-    val chords = canonical.sections.flatMap { it.lines }.flatMap { it.segments }.mapNotNull { it.anchor?.rawChord }.distinct().map { Music.transpose(it, song.transpose, flats) }
+    val keyContext = KeyContext.from(canonical.originalKey, canonical.tonalMode)
+    val key = keyContext?.let { Theory.currentKey(it, song.transpose, prefs.spelling).name } ?: song.key.takeIf { it.isNotBlank() }?.let { Theory.transpose(it, song.transpose, spelling = prefs.spelling) } ?: "Unknown"
+    val currentContext = keyContext?.let { Theory.currentKey(it, song.transpose, prefs.spelling) }
+    val chords = canonical.sections.flatMap { it.lines }.flatMap { it.segments }.mapNotNull { it.anchor?.rawChord }.distinct()
+    var setKey by remember { mutableStateOf(false) }
+    fun sounding(raw: String) = Theory.transpose(raw, song.transpose, keyContext, prefs.spelling)
+    fun label(raw: String) = Theory.label(raw, song.transpose, keyContext, labelMode, prefs.spelling)
     val versions = songs.filter { it.songUuid == song.songUuid }
     var versionMenu by remember { mutableStateOf(false) }
     val queue = entries.filter { it.setlistId == setId }.sortedBy { it.position }.mapNotNull { e -> songs.find { it.id == e.songId } }
@@ -75,7 +81,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
             }
             Column(Modifier.padding(horizontal = 24.dp)) {
                 Eyebrow("Your songbook")
-                Text(song.title, fontFamily = Serif, fontSize = 32.sp, modifier = Modifier.padding(top = 8.dp))
+                Text(song.title, fontFamily = Serif, fontSize = 32.sp, lineHeight = 38.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
                 Text(song.artist, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                 if (versions.size > 1) Box { TextButton({ versionMenu = true }) { Text("${song.arrangementName} · ${versions.size} versions"); Icon(Icons.Outlined.ExpandMore, null) }; DropdownMenu(versionMenu, { versionMenu = false }) { versions.forEach { version -> DropdownMenuItem(text = { Text("${version.arrangementName} · ${version.key.ifBlank { "Unknown key" }} · ${version.arrangementUuid.take(6)}") }, onClick = { versionMenu = false; next(version) }) } } }
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) {
@@ -84,18 +90,20 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) { Text("KEY $key", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text("${if (song.transpose > 0) "+" else ""}${song.transpose} semitones", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         IconButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(transpose = song.transpose + 1)) } }) { Icon(Icons.Outlined.Add, "Transpose up") }
                         VerticalDivider(Modifier.height(30.dp))
-                        TextButton({ controls = !controls }) { Text("Capo ${song.capo}", fontSize = 12.sp); Icon(Icons.Outlined.ExpandMore, null, Modifier.size(16.dp)) }
+                        TextButton({ controls = !controls }) { Text("More", fontSize = 12.sp); Icon(Icons.Outlined.ExpandMore, null, Modifier.size(16.dp)) }
                     }
                 }
                 if (controls) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Capo", fontSize = 12.sp); IconButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(capo = (song.capo - 1).coerceAtLeast(0))) } }, enabled = song.capo > 0) { Icon(Icons.Outlined.Remove, "Lower capo") }; Text("${song.capo}", fontSize = 12.sp); IconButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(capo = (song.capo + 1).coerceAtMost(12))) } }, enabled = song.capo < 12) { Icon(Icons.Outlined.Add, "Raise capo") }
-                        Spacer(Modifier.weight(1f)); TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(capo = 0, transpose = 0)) } }) { Text("Reset") }
+                        Spacer(Modifier.weight(1f)); TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.update(song.copy(capo = 0, transpose = 0)) } }) { Text("Reset original key") }
                     }
-                    Text("Sounding key: ${Music.transpose(song.key, song.transpose + song.capo, flats)} · chords show the shapes you play", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Concert key: $key · capo ${song.capo} is a guitar shape aid. Symbols and piano always show sounding pitches.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton({ setKey = true }) { Text("Set key / mode") }
                 }
+                if (keyContext == null) TextButton({ setKey = true }) { Text("Key required · Set key / mode") }
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 10.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    chords.forEach { chord -> AssistChip({ selectedChord = chord }, { Text(if (roman) Music.roman(chord, key) else chord, fontWeight = FontWeight.SemiBold) }) }
+                    chords.forEach { raw -> AssistChip({ selectedChord = sounding(raw) }, { Text(label(raw), fontWeight = FontWeight.SemiBold) }, modifier = Modifier.heightIn(min = 48.dp)) }
                 }
             }
         }
@@ -103,7 +111,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
             if (fullscreen) item { Text(song.title, fontFamily = Serif, fontSize = 25.sp); Spacer(Modifier.height(24.dp)) }
             canonical.sections.forEach { section ->
                 if (section.label.isNotEmpty()) item(key = "section-${section.id}") { Spacer(Modifier.height(14.dp)); Text(section.label.uppercase(), fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 12.dp)) }
-                section.lines.forEach { line -> item(key = "line-${line.id}") { CanonicalSheetLine(line, song.transpose, flats, roman, key, font) { selectedChord = it } } }
+                section.lines.forEach { line -> item(key = "line-${line.id}") { CanonicalSheetLine(line, font, ::label, ::sounding) { selectedChord = it } } }
             }
             item {
             if (song.notes.isNotBlank()) { Spacer(Modifier.height(24.dp)); Eyebrow("Your notes"); Text(song.notes, fontSize = 14.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp)) }
@@ -121,7 +129,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
                     Spacer(Modifier.weight(1f))
                     IconButton({ font = (font - 1).coerceAtLeast(14) }, enabled = font > 14) { Text("A−", fontSize = 14.sp) }
                     IconButton({ font = (font + 1).coerceAtMost(30) }, enabled = font < 30) { Text("A+", fontSize = 19.sp) }
-                    IconButton({ roman = !roman }) { Text(if (roman) "I–V" else "C–G", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    IconButton({ labelMode = LabelMode.entries[(labelMode.ordinal + 1) % LabelMode.entries.size] }, Modifier.semantics { contentDescription = "Chord labels: ${labelMode.title}. Change for this reader" }) { Text(when (labelMode) { LabelMode.SYMBOLS -> "C–G"; LabelMode.ROMAN -> "I–V"; LabelMode.BOTH -> "C (I)" }, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                     IconButton({ fullscreen = !fullscreen }) { Icon(if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, if (fullscreen) "Exit fullscreen" else "Fullscreen reader") }
                 }
                 if (queueIndex >= 0) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -132,80 +140,31 @@ fun ReaderScreen(song: Song, prefs: Preferences, sets: List<Setlist>, entries: L
             }
         }
     }
-    if (selectedChord != null) ChordDialog(selectedChord!!, prefs.instrument, { selectedChord = null })
+    if (selectedChord != null) ChordDialog(selectedChord!!, currentContext, prefs.instrument, song.capo, { instrument -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { Settings(context).save(prefs.copy(instrument = instrument)) } }, { selectedChord = null })
+    if (setKey) SetKeyDialog(canonical.originalKey.orEmpty(), canonical.tonalMode, { setKey = false }) { original, mode ->
+        scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            runCatching {
+                val document = Canonical.decode(song.documentJson).single().document
+                dao.store(document.copy(arrangements = listOf(canonical.copy(originalKey = original, tonalMode = mode))), song.id)
+            }.onSuccess { setKey = false }.onFailure { message = it.message ?: "Could not save key" }
+        }
+    }
     if (addToSet) AlertDialog(onDismissRequest = { addToSet = false }, title = { Text("Add to setlist", fontFamily = Serif) }, text = { Column { if (sets.isEmpty()) Text("Create a setlist from the Setlists tab first."); sets.forEach { set -> val exists = entries.any { it.setlistId == set.id && it.songId == song.id }; TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.addEntry(SetlistEntry(set.id, song.id, (entries.filter { it.setlistId == set.id }.maxOfOrNull { it.position } ?: -1) + 1)) }; addToSet = false; message = "Added to ${set.name}" }, enabled = !exists) { Text(set.name + if (exists) " · Added" else "") } } } }, confirmButton = { TextButton({ addToSet = false }) { Text("Done") } })
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CanonicalSheetLine(line: SheetLine, transpose: Int, flats: Boolean, roman: Boolean, key: String, font: Int, click: (String) -> Unit) {
+fun CanonicalSheetLine(line: SheetLine, font: Int, label: (String) -> String, sounding: (String) -> String, click: (String) -> Unit) {
     if (line.annotation != null) { Text(line.annotation, fontSize = (font - 3).sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 6.dp)); return }
     if (line.segments.all { it.text.isEmpty() && it.anchor == null }) { Spacer(Modifier.height(16.dp)); return }
     FlowRow(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         line.segments.forEach { segment ->
-            val chord = segment.anchor?.rawChord?.let { Music.transpose(it, transpose, flats) }
-            Column(Modifier.widthIn(min = if (chord != null) 48.dp else 0.dp).heightIn(min = 48.dp).then(if (chord != null) Modifier.clickable { click(chord) } else Modifier)) {
-                if (chord != null) Text(if (roman && key.isNotBlank()) Music.roman(chord, key) else chord, color = MaterialTheme.colorScheme.primary, fontSize = (font - 3).sp, fontWeight = FontWeight.Bold, modifier = Modifier.heightIn(min = 28.dp).padding(end = 6.dp))
+            val raw = segment.anchor?.rawChord
+            Column(Modifier.widthIn(min = if (raw != null) 48.dp else 0.dp).heightIn(min = 48.dp).then(if (raw != null) Modifier.clickable { click(sounding(raw)) } else Modifier)) {
+                if (raw != null) Text(label(raw), color = MaterialTheme.colorScheme.primary, fontSize = (font - 3).sp, fontWeight = FontWeight.Bold, modifier = Modifier.heightIn(min = 28.dp).padding(end = 6.dp))
                 else Spacer(Modifier.height(28.dp))
                 Text(segment.text, fontSize = font.sp, lineHeight = (font + 8).sp)
             }
         }
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ChordLine(line: String, transpose: Int, flats: Boolean, roman: Boolean, key: String, font: Int, click: (String) -> Unit) {
-    val tokens = Regex("(?:\\[([^]]+)])?([^\\[]*)").findAll(line).filter { it.value.isNotEmpty() }.toList()
-    FlowRow(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        tokens.forEach { token ->
-            val chord = token.groupValues[1].takeIf { it.isNotEmpty() }?.let { Music.transpose(it, transpose, flats) }
-            val lyric = token.groupValues[2]
-            Column(Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp).then(if (chord != null) Modifier.clickable { click(chord) } else Modifier)) {
-                if (chord != null) Text(if (roman) Music.roman(chord, key) else chord, color = MaterialTheme.colorScheme.primary, fontSize = (font - 3).sp, fontWeight = FontWeight.Bold, modifier = Modifier.heightIn(min = 28.dp).padding(end = 6.dp))
-                else Spacer(Modifier.height(28.dp))
-                Text(lyric.ifEmpty { " " }, fontSize = font.sp, lineHeight = (font + 8).sp)
-            }
-        }
-    }
-}
-
-@Composable
-fun ChordDialog(chord: String, initial: String, dismiss: () -> Unit) {
-    var instrument by remember { mutableStateOf(initial) }
-    AlertDialog(onDismissRequest = dismiss, title = { Text(chord, fontFamily = Serif, fontSize = 34.sp) }, text = { Column {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("Guitar", "Piano").forEach { FilterChip(instrument == it, { instrument = it }, { Text(it) }) } }
-        Spacer(Modifier.height(18.dp))
-        if (instrument == "Piano") PianoDiagram(chord) else GuitarDiagram(chord)
-        Text(if (instrument == "Piano") "Highlighted keys show chord tones across one octave." else "Standard tuning · E A D G B e\n○ open string · × muted string", fontSize = 12.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 18.dp))
-    } }, confirmButton = { TextButton(dismiss) { Text("Done") } })
-}
-@Composable
-fun PianoDiagram(chord: String) {
-    val tones = Music.piano(chord); val accent = MaterialTheme.colorScheme.primary
-    Canvas(Modifier.fillMaxWidth().height(130.dp)) {
-        val w = size.width / 7
-        listOf(0,2,4,5,7,9,11).forEachIndexed { i, pitch -> drawRect(if (pitch in tones) accent else Color.White, Offset(i * w, 0f), androidx.compose.ui.geometry.Size(w - 2, size.height)); drawRect(Color.Gray, Offset(i * w, size.height - 2), androidx.compose.ui.geometry.Size(w - 2, 2f)) }
-        listOf(0 to 1,1 to 3,3 to 6,4 to 8,5 to 10).forEach { (i, pitch) -> drawRect(if (pitch in tones) Color(0xFFB77A4B) else Color(0xFF252E29), Offset((i + 1) * w - w * .28f, 0f), androidx.compose.ui.geometry.Size(w * .56f, size.height * .61f)) }
-    }
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { listOf("C", "D", "E", "F", "G", "A", "B").forEach { Text(it, fontSize = 10.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) } }
-}
-@Composable
-fun GuitarDiagram(chord: String) {
-    val shape = Music.guitar[chord]
-    if (shape == null) { Text("No guitar voicing stored for $chord. Switch to Piano to see its chord tones.", lineHeight = 22.sp); return }
-    val start = (shape.filter { it > 0 }.minOrNull() ?: 1).let { if ((shape.maxOrNull() ?: 0) <= 4) 1 else it }
-    val accent = MaterialTheme.colorScheme.primary; val line = MaterialTheme.colorScheme.onSurfaceVariant
-    Canvas(Modifier.fillMaxWidth().height(174.dp).padding(horizontal = 20.dp)) {
-        val top = 24.dp.toPx(); val dx = size.width / 5; val dy = (size.height - top) / 4
-        repeat(6) { i -> drawLine(line, Offset(i * dx, top), Offset(i * dx, size.height), 2f) }
-        repeat(5) { i -> drawLine(line, Offset(0f, top + i * dy), Offset(size.width, top + i * dy), if (i == 0 && start == 1) 7f else 2f) }
-        shape.forEachIndexed { i, fret ->
-            val x = i * dx; val y = 10.dp.toPx(); val r = 3.dp.toPx()
-            if (fret > 0) drawCircle(accent, 9.dp.toPx(), Offset(x, top + (fret - start + .5f) * dy))
-            else if (fret == 0) drawCircle(line, r, Offset(x, y), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
-            else { drawLine(line, Offset(x-r,y-r), Offset(x+r,y+r), 2f); drawLine(line, Offset(x-r,y+r), Offset(x+r,y-r), 2f) }
-        }
-    }
-    Text("Fret $start", fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
 }

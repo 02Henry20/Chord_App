@@ -6,10 +6,15 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.*
 
 val Context.preferences by preferencesDataStore("preferences")
-data class Preferences(val dark: Boolean = false, val instrument: String = "Guitar", val fontSize: Int = 19, val keepAwake: Boolean = true, val roman: Boolean = false)
+data class Preferences(val dark: Boolean = false, val instrument: String = "Guitar", val fontSize: Int = 19, val keepAwake: Boolean = true, val chordLabels: LabelMode = LabelMode.SYMBOLS, val spelling: Spelling = Spelling.AUTO)
 class Settings(private val context: Context) {
-    val flow = context.preferences.data.map { Preferences(it[booleanPreferencesKey("dark")] ?: false, it[stringPreferencesKey("instrument")] ?: "Guitar", it[intPreferencesKey("fontSize")] ?: 19, it[booleanPreferencesKey("keepAwake")] ?: true, it[booleanPreferencesKey("roman")] ?: false) }
-    suspend fun save(p: Preferences) { context.preferences.edit { it[booleanPreferencesKey("dark")] = p.dark; it[stringPreferencesKey("instrument")] = p.instrument; it[intPreferencesKey("fontSize")] = p.fontSize; it[booleanPreferencesKey("keepAwake")] = p.keepAwake; it[booleanPreferencesKey("roman")] = p.roman } }
+    val flow = context.preferences.data.map { Preferences(it[booleanPreferencesKey("dark")] ?: false, it[stringPreferencesKey("instrument")] ?: "Guitar", it[intPreferencesKey("fontSize")] ?: 19, it[booleanPreferencesKey("keepAwake")] ?: true,
+        labelPreference(it[stringPreferencesKey("chordLabels")], it[booleanPreferencesKey("roman")] ?: false),
+        runCatching { Spelling.valueOf(it[stringPreferencesKey("spelling")] ?: "AUTO") }.getOrDefault(Spelling.AUTO)) }
+    suspend fun save(p: Preferences) { context.preferences.edit { it[booleanPreferencesKey("dark")] = p.dark; it[stringPreferencesKey("instrument")] = p.instrument; it[intPreferencesKey("fontSize")] = p.fontSize; it[booleanPreferencesKey("keepAwake")] = p.keepAwake; it[stringPreferencesKey("chordLabels")] = p.chordLabels.name; it[stringPreferencesKey("spelling")] = p.spelling.name } }
+    companion object {
+        fun labelPreference(stored: String?, legacyRoman: Boolean): LabelMode = runCatching { LabelMode.valueOf(stored ?: "") }.getOrDefault(if (legacyRoman) LabelMode.ROMAN else LabelMode.SYMBOLS)
+    }
 }
 
 val demoSongs = listOf(

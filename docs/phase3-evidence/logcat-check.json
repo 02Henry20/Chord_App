@@ -1,0 +1,16 @@
+{
+  "interactions": {
+    "fatal_exceptions": 0,
+    "anrs": 0,
+    "sqlite_exceptions": 0,
+    "illegal_state_exceptions": 0
+  },
+  "regressions": {
+    "fatal_exceptions": 0,
+    "anrs": 0,
+    "sqlite_exceptions": 0,
+    "illegal_state_exceptions": 0
+  },
+  "apk_sha256": "fae67c9d0ffc1e7e80e17248d6047d2b0a61bcad719300098b1f166a774a74c2",
+  "installed_version": "3.0-phase3 (versionCode 3)"
+}

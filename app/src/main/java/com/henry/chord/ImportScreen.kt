@@ -146,7 +146,7 @@ private fun ImportPreview(candidate: ImportCandidate, dao: ChordDao, dismiss: ()
                     Text("${match.title}\n${match.artist} · ${match.arrangementName} · ${match.key.ifBlank { "Unknown key" }}", fontSize = 13.sp)
                     Text("Replacing keeps its personal state and setlist references. Compare this sheet before choosing Replace.", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(vertical = 8.dp))
                     val old = remember(match.documentJson) { Canonical.decode(match.documentJson).single().document.arrangements.single() }
-                    old.sections.firstOrNull()?.lines?.take(2)?.forEach { CanonicalSheetLine(it, 0, false, false, match.key, 13) {} }
+                    old.sections.firstOrNull()?.lines?.take(2)?.forEach { CanonicalSheetLine(it, 13, { raw -> raw }, { raw -> raw }) {} }
                     Text("Incoming arrangement", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
                 }
                 if (candidate.needsReview) {
@@ -156,7 +156,7 @@ private fun ImportPreview(candidate: ImportCandidate, dao: ChordDao, dismiss: ()
                     if (original) SelectionContainerCompat(raw.readText())
                     else OutlinedTextField(editor ?: a.editorText(), { editor = it }, Modifier.fillMaxWidth().heightIn(min = 180.dp), label = { Text("Review chords & lyrics") })
                 } else {
-                    a.sections.take(3).forEach { section -> Text(section.label, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)); section.lines.take(5).forEach { CanonicalSheetLine(it, 0, false, false, a.originalKey.orEmpty(), 15) {} } }
+                    a.sections.take(3).forEach { section -> Text(section.label, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)); section.lines.take(5).forEach { CanonicalSheetLine(it, 15, { raw -> raw }, { raw -> raw }) {} } }
                 }
             }
         }

@@ -38,7 +38,7 @@ class AppTest {
         rule.onNodeWithText("A little closer").performClick()
         awaitText("KEY C"); screenshot("03-reader")
         rule.onNodeWithContentDescription("Transpose up").performClick()
-        awaitText("KEY C#")
+        awaitText("KEY Db")
         rule.onNodeWithContentDescription("Transpose down").performClick()
         awaitText("KEY C")
         rule.onAllNodesWithText("C").onFirst().performClick()

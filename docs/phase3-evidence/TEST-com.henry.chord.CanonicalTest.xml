@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.CanonicalTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-22T18:49:56.544Z" hostname="HENRY-COMPUTER" time="0.229">
+  <properties/>
+  <testcase name="traversalAbsoluteAndWindowsPathsAreBlocked" classname="com.henry.chord.CanonicalTest" time="0.1"/>
+  <testcase name="unknownChordsArePreservedInsteadOfDropped" classname="com.henry.chord.CanonicalTest" time="0.043"/>
+  <testcase name="schemaDraftMigratesAndFutureVersionIsRejected" classname="com.henry.chord.CanonicalTest" time="0.015"/>
+  <testcase name="relativeArtworkUsesManifestDirectoryThenArchiveRoot" classname="com.henry.chord.CanonicalTest" time="0.021"/>
+  <testcase name="unicodeWhitespaceBlankAndChordOnlyRowsSurvive" classname="com.henry.chord.CanonicalTest" time="0.008"/>
+  <testcase name="fingerprintIgnoresGeneratedIdsButNotSpacesOrChordBoundaries" classname="com.henry.chord.CanonicalTest" time="0.012"/>
+  <testcase name="editingRecalculatesBoundariesAndKeepsUnchangedLineIds" classname="com.henry.chord.CanonicalTest" time="0.001"/>
+  <testcase name="ambiguousUnicodeAndTabsNeverGetSilentOffsets" classname="com.henry.chord.CanonicalTest" time="0.004"/>
+  <testcase name="insertingSectionsAndLinesDoesNotStealExistingIds" classname="com.henry.chord.CanonicalTest" time="0.004"/>
+  <testcase name="acceptsExampleAndUsesExactBeforeSegmentPositioning" classname="com.henry.chord.CanonicalTest" time="0.014"/>
+  <testcase name="chordproMetadataAndSectionsAreRetained" classname="com.henry.chord.CanonicalTest" time="0.002"/>
+  <testcase name="separateChordRowsRequireReview" classname="com.henry.chord.CanonicalTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

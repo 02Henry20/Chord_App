@@ -80,9 +80,21 @@ fun SettingsScreen(prefs: Preferences, save: (Preferences) -> Unit) {
         Text("Text size · ${prefs.fontSize} sp", fontSize = 14.sp)
         Slider(prefs.fontSize.toFloat(), { save(prefs.copy(fontSize = it.toInt())) }, valueRange = 14f..30f, steps = 15)
         SettingSwitch("Keep screen awake", "While a song is open", prefs.keepAwake) { save(prefs.copy(keepAwake = it)) }
-        SettingSwitch("Roman numerals", "Degrees relative to the song's tonic", prefs.roman) { save(prefs.copy(roman = it)) }
+        SectionTitle("Chord labels")
+        Text("Roman numeral / scale-degree harmony", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LabelMode.entries.forEach { mode ->
+            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { save(prefs.copy(chordLabels = mode)) }.testTag("label-${mode.name}"), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(prefs.chordLabels == mode, null)
+                Text(mode.title, Modifier.weight(1f), fontSize = 14.sp)
+                Text(when (mode) { LabelMode.SYMBOLS -> "C  G  Am"; LabelMode.ROMAN -> "I  V  vi"; LabelMode.BOTH -> "C (I)" }, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Text("Root degrees and chord qualities, not inferred harmonic functions. Minor uses the natural-minor scale; raised notes carry #. Slash numbers show the bass scale degree: C/E in C major is I/3. b = flat, # = sharp, ° = diminished, ø7 = half-diminished. An unknown key or mode keeps chord symbols visible.", fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SectionTitle("Note spelling")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Spelling.entries.forEach { value -> FilterChip(prefs.spelling == value, { save(prefs.copy(spelling = value)) }, { Text(value.title) }) } }
+        Text("Auto uses common keys. Chords retain their scale-degree spelling, so some keys need double accidentals.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SectionTitle("A simpler songbook")
-        Text("Chord 1.0\nAn offline space for songs and sessions.\n\nSix original demo songs are included. Your library, favorites, notes, setlists and reader adjustments are saved locally. Export individual songs from the reader as ChordPro files.", fontSize = 13.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Chordroom · Phase 3\nAn offline space for songs and sessions.\n\nYour library, favorites, notes, setlists and reader adjustments are saved locally. Six original demo songs are included.", fontSize = 13.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(32.dp))
     }
 }
@@ -98,7 +110,7 @@ fun EditorScreen(song: Song?, dao: ChordDao, back: () -> Unit, deleted: () -> Un
     var error by remember { mutableStateOf("") }; var deleting by remember { mutableStateOf(false) }; var saving by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(back) { Icon(Icons.Outlined.Close, "Cancel editing") }; Text(if (song == null) "New song" else "Edit song", Modifier.weight(1f), fontFamily = Serif, fontSize = 24.sp); Button({
-            if (key.isNotBlank() && !Regex("[A-G][#b]?m?").matches(key.trim())) error = "Enter a key such as C, F# or Am, or leave it unknown."
+            if (key.isNotBlank() && !Canonical.keyValid(key.trim())) error = "Enter a key such as C, F# or Am, or leave it unknown."
             else if (source.isNotBlank() && !source.startsWith("https://") && !source.startsWith("http://")) error = "Source links must begin with https:// or http://."
             else { saving = true; scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { runCatching { val updated = (song ?: Song(title = "", body = "")).copy(title = title.trim(), artist = artist.trim().ifBlank { "Original" }, key = key.trim(), body = body, notes = notes, source = source.trim()); if (song == null) dao.insert(updated) else dao.update(updated) }.onSuccess { back() }.onFailure { error = it.message ?: "Save failed"; saving = false } } }
         }, enabled = title.isNotBlank() && body.isNotBlank() && !saving) { Text("Save") } }
@@ -106,6 +118,8 @@ fun EditorScreen(song: Song?, dao: ChordDao, back: () -> Unit, deleted: () -> Un
         OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth(), label = { Text("Song title") }, singleLine = true)
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) { OutlinedTextField(artist, { artist = it }, Modifier.weight(1f), label = { Text("Artist") }, singleLine = true); OutlinedTextField(key, { key = it }, Modifier.width(90.dp), label = { Text("Key") }, singleLine = true) }
         OutlinedTextField(body, { body = it }, Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 260.dp), label = { Text("Chords & lyrics") }, placeholder = { Text("{comment:Verse}\n[C]Write your first [G]line…") }, supportingText = { Text("Use [C] for chords and {comment:Chorus} for sections.") })
+        val unsupported = remember(body) { Music.chords(body).filter { ChordParser.parse(it) == null } }
+        if (unsupported.isNotEmpty()) Text("Unrecognized chords kept as written: ${unsupported.joinToString()}. Check their spelling; diagrams and degrees are unavailable.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
         OutlinedTextField(notes, { notes = it }, Modifier.fillMaxWidth().padding(top = 12.dp), label = { Text("Your notes") }, minLines = 3)
         OutlinedTextField(source, { source = it }, Modifier.fillMaxWidth().padding(top = 12.dp), label = { Text("Source link (optional)") }, singleLine = true, supportingText = { Text("Opens externally from the reader.") })
         if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 12.dp))

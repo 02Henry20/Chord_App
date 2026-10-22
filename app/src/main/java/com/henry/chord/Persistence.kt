@@ -133,7 +133,9 @@ abstract class ChordDao {
             val parsed = if (previous != null && previous.arrangements.single().editorText() == song.body) previous else if (song.body.isBlank()) {
                 SongDocument(songId = song.songUuid.ifEmpty { Canonical.uuid() }, title = song.title, artist = song.artist, arrangements = listOf(ArrangementDoc(song.arrangementUuid.ifEmpty { Canonical.uuid() }, sections = listOf(SheetSection(Canonical.uuid(), "custom", "", listOf(SheetLine(Canonical.uuid(), listOf(TextSegment(Canonical.uuid(), song.body)))))))))
             } else SheetParser.parse(song.body, "song.cho", previous).document
-            val a = parsed.arrangements.single().copy(originalKey = song.key.ifBlank { null }, tonalMode = Canonical.mode(song.key.ifBlank { null }), provenance = song.source.ifBlank { parsed.arrangements.single().provenance })
+            val oldArrangement = previous?.arrangements?.single()
+            val mode = if (oldArrangement != null && oldArrangement.originalKey.orEmpty() == song.key) oldArrangement.tonalMode else Canonical.mode(song.key.ifBlank { null })
+            val a = parsed.arrangements.single().copy(originalKey = song.key.ifBlank { null }, tonalMode = mode, provenance = song.source.ifBlank { parsed.arrangements.single().provenance })
             return parsed.copy(title = song.title, artist = song.artist, arrangements = listOf(a))
         }
     }

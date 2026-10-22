@@ -2,6 +2,15 @@
 
 A native, offline Android songbook built with Kotlin, Compose, Material 3 and Room. The app upgrades the original Chord package without clearing its existing library.
 
+## Phase 3
+
+- Persistent Chord symbols / Roman numerals / Both preferences, with major/minor and diatonic spelling context.
+- Separate immutable canonical chords and saved transposition; current-key labels and slash basses transpose together.
+- Tappable sounding chords, spelled notes, chromatic piano with voiced octaves/inversions, and validated guitar fingerings.
+- Explicit unknown-key editing and unsupported-chord warnings; offline native Kotlin theory with deterministic tests.
+
+Read the [theory conventions and implementation](docs/PHASE3.md) and [Phase 3 emulator evidence](docs/phase3-evidence/RESULTS.md).
+
 ## Phase 2
 
 - Versioned canonical songs with stable UUIDs, multiple arrangements, rich metadata, sections and exact Unicode lyric/chord segments.
@@ -38,6 +47,7 @@ adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
 adb push docs\demo-packs /sdcard/Documents/ChordroomPhase2
 adb shell am instrument -w -e class com.henry.chord.Phase2EngineTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 adb shell am instrument -w -e class com.henry.chord.Phase2PickerTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.henry.chord.Phase3InteractionTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 These tests exercise real Room persistence, 320-song batches, repeat imports, cancellation/recovery, ZIP defenses, image copying and archive round trips. The picker suite navigates Android DocumentsUI and imports original fixtures. See the validation report for the source-unavailable cold-start test and screenshot retrieval commands. Direct ADB testing leaves the installed app and library intact; Gradle connected-test cleanup can remove its installation.

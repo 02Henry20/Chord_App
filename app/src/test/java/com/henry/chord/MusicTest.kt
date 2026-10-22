@@ -13,9 +13,9 @@ class MusicTest {
     }
     @Test fun romanDegreesRetainQualityAndBass() {
         assertEquals("vi", Music.roman("Am", "C"))
-        assertEquals("V7/VII", Music.roman("G7/B", "C"))
+        assertEquals("V7/7", Music.roman("G7/B", "C"))
         assertEquals("Imaj7", Music.roman("Dmaj7", "D"))
-        assertEquals("♭VII", Music.roman("F", "G"))
+        assertEquals("bVII", Music.roman("F", "G"))
     }
     @Test fun chordTonesAreMusicallyCorrect() {
         assertEquals(setOf(0, 4, 7), Music.piano("C"))

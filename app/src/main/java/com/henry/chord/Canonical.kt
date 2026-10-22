@@ -45,9 +45,9 @@ object Canonical {
     fun identity(value: String) = runCatching { UUID.fromString(value).toString() }.getOrElse { stable(value) }
     fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     fun normalized(value: String) = Normalizer.normalize(value, Normalizer.Form.NFKC).lowercase(Locale.ROOT).trim().replace(Regex("\\s+"), " ")
-    fun keyValid(key: String) = Regex("[A-G](?:#|b)?m?").matches(key)
+    fun keyValid(key: String) = Note.parse(key.removeSuffix("m")) != null
     fun mode(key: String?): String? = key?.let { if (it.endsWith("m")) "minor" else "major" }
-    fun chordValid(chord: String) = Regex("[A-G](?:[#b♯♭])?(?:(?:maj|min|dim|aug|sus|add|m|M|ø|°|[0-9#b()+−-])*)(?:/[A-G](?:[#b♯♭])?)?").matches(chord)
+    fun chordValid(chord: String) = ChordParser.parse(chord) != null
     fun fingerprint(doc: SongDocument): String {
         val a = doc.arrangements.single()
         // IDs and import paths are deliberately excluded. Lyric whitespace and anchor boundaries are exact.
@@ -65,7 +65,7 @@ object Canonical {
         .put("title", doc.title).put("artist", doc.artist).put("album", doc.album).put("year", doc.year).put("language", doc.language).put("genre", doc.genre)
         .put("tags", JSONArray(doc.tags)).put("artwork", doc.artwork?.let { JSONObject().put("path", it.path).put("sourceUrl", it.sourceUrl).put("credit", it.credit) })
         .put("musicLinks", JSONObject().put("spotifyTrackUrl", doc.links.spotify).put("youtubeVideoUrl", doc.links.youtube))
-        .put("arrangements", JSONArray(doc.arrangements.map { a -> JSONObject().put("arrangementId", a.id).put("name", a.name).put("originalKey", a.originalKey).put("tonalMode", a.tonalMode)
+        .put("arrangements", JSONArray(doc.arrangements.map { a -> JSONObject().put("arrangementId", a.id).put("name", a.name).put("originalKey", a.originalKey).put("tonalMode", a.tonalMode ?: JSONObject.NULL)
             .put("tempoBpm", a.tempoBpm).put("timeSignature", a.timeSignature).put("sourceId", a.sourceId).put("sourceFormat", a.sourceFormat).put("provenance", a.provenance).put("licenseNotes", a.licenseNotes).put("comments", a.comments)
             .put("sections", JSONArray(a.sections.map { s -> JSONObject().put("id", s.id).put("type", s.type).put("label", s.label).put("lines", JSONArray(s.lines.map { l ->
                 JSONObject().put("id", l.id).put("annotation", l.annotation).put("segments", JSONArray(l.segments.map { seg -> JSONObject().put("id", seg.id).put("text", seg.text).apply {
@@ -97,9 +97,9 @@ object Canonical {
                 val arrangementId = identity(a.string("arrangementId") ?: a.string("arrangementUuid") ?: "$songId/arrangement/$index")
                 val key = a.string("originalKey") ?: a.string("key")
                 require(key == null || keyValid(key)) { "Invalid originalKey: $key" }
-                val mode = a.string("tonalMode") ?: mode(key)
+                val mode = if (a.has("tonalMode")) a.string("tonalMode") else mode(key)
                 require(mode == null || mode in setOf("major", "minor")) { "tonalMode must be major, minor, or null." }
-                require(key == null || mode == mode(key)) { "Key and tonalMode disagree." }
+                require(key == null || !key.endsWith("m") || mode == null || mode == "minor") { "Key and tonalMode disagree." }
                 val tempo = a.number("tempoBpm")
                 require(tempo == null || tempo.isFinite() && tempo in 10.0..500.0) { "tempoBpm must be 10–500." }
                 val time = a.string("timeSignature")

@@ -11,5 +11,6 @@ local-tests.log
 manual-device-tests.log
 .local-backup/
 phase2-*.log
+phase3-*.log
 docs/evidence/*.tar
 docs/screenshots.tar

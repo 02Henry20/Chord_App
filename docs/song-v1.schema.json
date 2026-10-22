@@ -28,8 +28,8 @@
       "type": "object", "required": ["arrangementId", "name", "sections"],
       "properties": {
         "arrangementId": {"type": "string", "format": "uuid"}, "name": {"type": "string"},
-        "originalKey": {"type": ["string", "null"], "pattern": "^[A-G](#|b)?m?$"},
-        "tonalMode": {"enum": ["major", "minor", null]},
+        "originalKey": {"type": ["string", "null"], "pattern": "^[A-G](?:[#♯]{1,6}|[b♭]{1,6}|x|𝄪{1,3}|𝄫{1,3})?m?$", "description": "Tonic spelling, optionally followed by m. Prefer ASCII b/# in portable files; Unicode accidentals are accepted on import."},
+        "tonalMode": {"enum": ["major", "minor", null], "description": "Explicit null means unknown and must not produce Roman degrees. A tonic without an m suffix may be major or minor; an m suffix cannot claim major."},
         "tempoBpm": {"type": ["number", "null"], "minimum": 10, "maximum": 500},
         "timeSignature": {"type": ["string", "null"]},
         "sourceId": {"type": ["string", "null"]}, "sourceFormat": {"type": ["string", "null"]},
