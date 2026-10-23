@@ -20,28 +20,27 @@ fun BackupControls(database: ChordDatabase) {
     var preview by remember { mutableStateOf<BackupPreview?>(null) }
     var replace by remember { mutableStateOf(false) }; var acknowledged by remember { mutableStateOf(false) }; var includeSettings by remember { mutableStateOf(true) }
     fun work(action: suspend () -> Unit) { job=scope.launch(Dispatchers.Main.immediate) { busy=true; try { action() } catch (e: CancellationException) { message="Operation cancelled. Review the current library before retrying." } catch (e: Exception) { message="Backup failed: ${e.message}" } finally { busy=false } } }
-    val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> if (uri != null) work { message="Writing complete backup…"; manager.export(uri); message="Backup saved: songs, versions, artwork, favorites, setlists, notes and preferences." } }
+    val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> if (uri != null) work { message="Writing complete backup…"; manager.export(uri); message="Backup saved: songs, versions, artwork, favorites, notes and preferences." } }
     val restore=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) work {
         message="Validating backup files and artwork…"; preview?.root?.deleteRecursively(); preview=manager.stage(uri); replace=false; acknowledged=false; message="Backup ready for review."
     } }
-    SectionTitle("Backup & restore")
-    Text("Versioned ZIP archives work offline. Merge preserves existing songs, personal edits and setlist orders when IDs match.",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("Versioned ZIP archives work offline. Merge preserves existing songs and personal edits when IDs match.",fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
     OutlinedButton({ export.launch("chordroom-backup.zip") },Modifier.fillMaxWidth(),enabled=!busy) { Text("Export full backup ZIP") }
     OutlinedButton({ restore.launch(arrayOf("application/zip","application/octet-stream")) },Modifier.fillMaxWidth(),enabled=!busy) { Text("Restore full backup") }
     if (busy) { LinearProgressIndicator(Modifier.fillMaxWidth()); TextButton({ job?.cancel() }) { Text("Cancel backup operation") } }
     if (message.isNotEmpty()) Text(message,Modifier.padding(vertical=8.dp),fontSize=13.sp)
     preview?.let { p -> AlertDialog(onDismissRequest={ if (!busy) { preview=null; p.root.deleteRecursively() } },title={ Text("Review backup") },text={ Column(Modifier.verticalScroll(rememberScrollState())) {
-        Text("${p.songs} songs · ${p.versions} arrangements\n${p.covers} covers · ${p.sets} setlists",fontSize=16.sp)
+        Text("${p.songs} songs · ${p.versions} arrangements\n${p.covers} covers",fontSize=16.sp)
         Row(Modifier.fillMaxWidth().clickable(enabled=!busy) { replace=false },verticalAlignment=Alignment.CenterVertically) { RadioButton(!replace,{ replace=false },enabled=!busy); Text("Merge into this library") }
         Row(Modifier.fillMaxWidth().clickable(enabled=!busy) { replace=true },verticalAlignment=Alignment.CenterVertically) { RadioButton(replace,{ replace=true },enabled=!busy); Text("Replace this library") }
-        if (replace) { Text("Replace deletes all current songs, favorites, notes and setlists, then restores this backup. Export a backup first if you need the current library.",color=MaterialTheme.colorScheme.error)
+        if (replace) { Text("Replace deletes current library data, then restores this backup. Export a backup first if you need the current library.",color=MaterialTheme.colorScheme.error)
             Row(verticalAlignment=Alignment.CenterVertically) { Checkbox(acknowledged,{ acknowledged=it },enabled=!busy); Text("I understand that current library data will be replaced.",fontSize=13.sp) }
         }
         Row(verticalAlignment=Alignment.CenterVertically) { Checkbox(includeSettings,{ includeSettings=it },enabled=!busy); Text("Restore device preferences",fontSize=13.sp) }
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     } },confirmButton={ TextButton({ work {
         message="Restoring backup…"; val result=manager.restore(p,replace,includeSettings)
-        message="Restored ${result.imported} arrangements, skipped ${result.skipped} existing, added ${result.setlists} setlists." + if (result.settingsPending) " Device preferences are pending; reopen the app to retry." else ""
+        message="Restored ${result.imported} arrangements, skipped ${result.skipped} existing." + if (result.settingsPending) " Device preferences are pending; reopen the app to retry." else ""
         preview=null; p.root.deleteRecursively()
     } },enabled=!busy && (!replace || acknowledged)) { Text("Restore backup") } },dismissButton={ TextButton({ preview=null; p.root.deleteRecursively() },enabled=!busy) { Text("Cancel") } }) }
 }

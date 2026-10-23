@@ -132,7 +132,15 @@ class BulkImportManager(private val context: Context, private val dao: ChordDao)
             if (ext !in songExtensions) return@forEach
             try {
                 val text = utf8(file)
-                val documents = if (ext == "json") Canonical.decode(text) else listOf(if (ext == "txt") SheetParser.plainText(text, file.name) else SheetParser.parse(text, file.name))
+                val documents = if (ext == "json") ImportSyntax.native(text) else {
+                    ImportSyntax.chordPro(text)
+                    listOf(if (ext == "txt") SheetParser.plainText(text, file.name) else SheetParser.parse(text, file.name)).also { docs -> docs.forEach { ImportSyntax.native(Canonical.encode(it.document)) } }
+                }
+                // Validate every declared local asset before staging any song from this file.
+                documents.forEach { parsed -> parsed.document.artwork?.path?.let { path ->
+                    val source=ArtworkStore.resolve(raw,relative,path) ?: error("artwork.path: missing local image '$path'. Include it in the selected files/folder/ZIP, or omit artwork.path.")
+                    artwork.validate(source)
+                } }
                 for (parsed in documents) for (arrangement in parsed.document.arrangements) {
                     require(candidates.size < MAX_CANDIDATES) { "Pack exceeds 2000 arrangements. Split the collection." }
                     val doc = parsed.document.single(arrangement); val warnings = parsed.warnings.toMutableList()
@@ -167,7 +175,7 @@ class BulkImportManager(private val context: Context, private val dao: ChordDao)
 
     suspend fun review(session: ImportSession, id: String, editorText: String?): ImportSession = withContext(Dispatchers.IO) {
         val c = session.candidates.first { it.id == id }
-        if (editorText != null) { val previous = Canonical.decode(File(c.draft).readText()).single().document; File(c.draft).writeText(Canonical.encode(SheetParser.parse(editorText, "review.cho", previous).document)) }
+        if (editorText != null) { ImportSyntax.chordPro(editorText); val previous = Canonical.decode(File(c.draft).readText()).single().document; val revised=Canonical.encode(SheetParser.parse(editorText, "review.cho", previous).document); ImportSyntax.native(revised); File(c.draft).writeText(revised) }
         session.copy(candidates = session.candidates.map { if (it.id == id) it.copy(reviewed = true, choice = if (it.needsReview && it.duplicateReason == null) ImportChoice.IMPORT else it.choice) else it }).also { save(it) }
     }
     suspend fun commit(start: ImportSession, progress: (ImportProgress) -> Unit = {}): ImportSession = LibraryFiles.mutex.withLock { withContext(Dispatchers.IO) {
@@ -180,7 +188,9 @@ class BulkImportManager(private val context: Context, private val dao: ChordDao)
                     session = session.copy(skips = session.skips + 1, candidates = session.candidates.map { if (it.id == c.id) it.copy(committed = true) else it }); save(session); continue
                 }
                 try {
-                    var doc = Canonical.decode(File(c.draft).readText()).single().document; val a = doc.arrangements.single()
+                    val draft=File(c.draft).readText()
+                    var doc = ImportSyntax.native(draft).single().document; val a = doc.arrangements.single()
+                    if (doc.artwork?.path != null) artwork.validate(c.artworkSource?.let(::File) ?: error("artwork.path: staged image is missing. Choose the source again."))
                     val now = dao.potentialDuplicates(Canonical.fingerprint(doc), a.sourceId, ChordDao.identity(doc), a.id)
                     if (c.choice == ImportChoice.IMPORT && now.any { it.fingerprint == Canonical.fingerprint(doc) && (!c.preserveIdentity || it.arrangementUuid == a.id) }) session = session.copy(skips = session.skips + 1)
                     else {

@@ -10,9 +10,11 @@ p = argparse.ArgumentParser()
 p.add_argument('action', choices=['dump', 'tap', 'capture'])
 p.add_argument('value', nargs='?')
 p.add_argument('--adb', default=r'A:\AI\runtimes\android-sdk\platform-tools\adb.exe')
+p.add_argument('--port', type=int, default=5037)
+p.add_argument('--serial', default='emulator-5554')
 args = p.parse_args()
 def adb(*parts):
-    return subprocess.check_output([args.adb, '-s', 'emulator-5554', *parts])
+    return subprocess.check_output([args.adb, '-P', str(args.port), '-s', args.serial, *parts])
 if args.action == 'capture':
     Path(args.value).write_bytes(adb('exec-out', 'screencap', '-p'))
 else:

@@ -42,7 +42,7 @@ class ReleaseLargeLibraryTest {
             rule.waitUntil(10000) { rule.onAllNodesWithTag("song-${ids[0]}").fetchSemanticsNodes().isNotEmpty() }
             repeat(8) { rule.onNodeWithTag("library-list").performTouchInput { swipeUp(durationMillis=300) }; Thread.sleep(200) }
             shot("30-large-library-scrolled")
-            rule.onNodeWithText("Settings").performClick(); rule.onNodeWithTag("theme-DARK").performClick(); rule.onNodeWithText("Home").performClick(); shot("34-home-dark"); rule.onNodeWithText("Library").performClick(); shot("31-library-dark-1000-offline")
+            rule.onNodeWithText("Settings").performClick(); rule.onNodeWithTag("category-Appearance").performScrollTo().performClick(); rule.onNodeWithTag("theme-DARK").performClick(); rule.onNodeWithText("Home").performClick(); shot("34-home-dark"); rule.onNodeWithText("Library").performClick(); shot("31-library-dark-1000-offline")
             rule.onNodeWithTag("library-search").performTextReplacement("Café session"); rule.waitUntil(10000) { rule.onAllNodesWithTag("song-${ids[0]}").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithTag("library-search").performTextReplacement("日本"); rule.waitUntil(10000) { rule.onAllNodesWithTag("song-${ids[0]}").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithText("Settings").performClick(); rule.onNodeWithTag("theme-SYSTEM").performClick(); rule.waitUntil(5000) { runBlocking { Settings(context).flow.first().theme == ThemeMode.SYSTEM } }; shot("32-settings-system")

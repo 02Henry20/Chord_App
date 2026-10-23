@@ -42,7 +42,7 @@ fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: (() -> Unit)? = null, nu
         Column(Modifier.weight(1f)) {
             Text((number?.let { "$it  " } ?: "") + song.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 21.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(song.artist.ifBlank { "Unknown artist" } + if (song.arrangementName != "Main") " · ${song.arrangementName}" else "", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(song.displayKey(spelling) + (song.tags().firstOrNull()?.let { "   ·   $it" } ?: ""), color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            song.tags().firstOrNull()?.let { tag -> Text(tag, color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             if (excerpt != null) {
                 val background = MaterialTheme.colorScheme.secondaryContainer
                 val foreground = MaterialTheme.colorScheme.onSecondaryContainer
@@ -107,7 +107,7 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
                 SongRow(hit.song, { open(hit.song) }, { favorite(hit.song) }, query = settled, excerpt = preview, spelling = prefs.spelling)
             }
             if (count == 0 && query == settled) item {
-                EmptyState(if (query.isNotEmpty()) "No matches yet" else if (tab == "Favorites") "Save your session favorites" else if (tab == "Recent") "A fresh start" else "Make this library yours", if (query.isNotEmpty()) "Try a shorter phrase, artist, album or tag." else if (tab == "Favorites") "Tap a heart beside any song. Your favorites stay on this device." else if (tab == "Recent") "Songs you open will appear here." else "Import a folder of songs or write your first chord sheet.", if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) "Show all songs" else "Write a song", { if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) { query = ""; tab = "All songs"; artist = ""; tag = ""; key = ""; reset() } else add() })
+                EmptyState(if (query.isNotEmpty()) "No matches yet" else if (tab == "Favorites") "Save your favorites" else if (tab == "Recent") "A fresh start" else "Make this library yours", if (query.isNotEmpty()) "Try a shorter phrase, artist, album or tag." else if (tab == "Favorites") "Tap a heart beside any song. Your favorites stay on this device." else if (tab == "Recent") "Songs you open will appear here." else "Import a folder of songs or write your first chord sheet.", if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) "Show all songs" else "Write a song", { if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) { query = ""; tab = "All songs"; artist = ""; tag = ""; key = ""; reset() } else add() })
             }
             if (limit < count) item { TextButton({ limit += 100 }, Modifier.fillMaxWidth()) { Text("Load more songs") } }
         }
@@ -127,7 +127,7 @@ private fun LibraryOptions(all: List<Song>, initial: LibrarySort, initialArtist:
         if (artist.isNotEmpty()) FlowRow { all.map { it.artist }.distinct().filter { SearchText.normalize(it).contains(SearchText.normalize(artist)) && it != artist }.take(4).forEach { name -> SuggestionChip({ artist = name }, { Text(name, maxLines = 1) }) } }
         OutlinedTextField(tag, { tag = it }, label = { Text("Tag (exact spelling)") }, singleLine = true, modifier = Modifier.padding(top = 8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) { all.flatMap { it.tags() }.distinct().filter { tag.isEmpty() || it.contains(tag, true) }.take(6).forEach { value -> FilterChip(tag == value, { tag = if (tag == value) "" else value }, { Text(value, maxLines = 1) }) } }
-        OutlinedTextField(key, { key = it }, label = { Text("Original key (e.g. C, Am)") }, singleLine = true, modifier = Modifier.padding(top = 8.dp))
+        OutlinedTextField(key, { key = it }, label = { Text("Key (e.g. C, Am)") }, singleLine = true, modifier = Modifier.padding(top = 8.dp))
         TextButton({ artist = ""; tag = ""; key = "" }) { Text("Clear filters") }
     } }, confirmButton = { TextButton({ apply(sort, artist.trim(), tag.trim(), key.trim()) }) { Text("Apply") } }, dismissButton = { TextButton(dismiss) { Text("Cancel") } })
 }

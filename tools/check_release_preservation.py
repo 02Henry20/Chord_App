@@ -30,6 +30,9 @@ report=dict(
 before_preferences=logical(decode(a.before/'files/datastore/preferences.preferences_pb'))
 after_preferences=logical(decode(a.after/'files/datastore/preferences.preferences_pb'))
 report['preferences_restored_exact']=all(math.isclose(value,after_preferences[key],abs_tol=1e-5) if isinstance(value,float) else value==after_preferences[key] for key,value in before_preferences.items())
+if 'entryId' in {r[1] for r in b.execute('PRAGMA table_info(setlist_entries)')}:
+    report['legacy_setlist_occurrence_details_exact']=rows(b,'setlist_entries')==rows(c,'setlist_entries')
+    report['legacy_setlist_full_records_exact']=rows(b,'setlists')==rows(c,'setlists')
 print(json.dumps(report,indent=2))
 assert report['before_arrangements']==report['after_arrangements']
 assert all(v for k,v in report.items() if k.endswith('_exact'))

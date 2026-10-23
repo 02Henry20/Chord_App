@@ -4,15 +4,19 @@ A native, offline Android songbook built with Kotlin, Compose, Material 3 and Ro
 
 ## Current implementation
 
-Native measured chord/lyric alignment; Symbols/Roman/Both labels and non-destructive transpose; piano/guitar chord detail; timed performance scrolling; persistent readability controls; structured section/line/anchor editing; repeated setlist occurrences with key overrides and notes; full versioned ZIP backup/restore; and colorful light/dark/system palettes with tested contrast. A static rainbow accent adds color to library screens without animating the performance sheet.
+Native measured chord/lyric alignment, colored section groups and instrumental rows; Symbols/Roman/Both labels configured in Settings; non-destructive transpose; full root-position piano chords or one validated guitar diagram; timed performance scrolling; structured song editing; full ZIP backup/restore; and colorful light/dark/system palettes. Home offers a random song and shuffle button. Settings open one category at a time with live typography, chord-label and spelling previews. The launcher uses the owner's supplied purple artwork with adaptive/themed icon resources.
+
+**1.0.0-rc2 simplifies the interface:** setlists/sessions, reader label toggles, lyrics-only/chords-only modes, section-jump/share/JSON-export menus, inversion selectors and chord-dialog instrument switches have been removed. Existing setlist records remain in the database/backup format for compatibility; they have no active UI. Songs and personal data are preserved. Android safe-drawing insets keep headers below status icons and cutouts.
+
+Read the detailed, copyable **[song import guide (.txt)](docs/SONG-IMPORT-GUIDE.txt)**. New imports are strictly syntax/type/field/chord/asset checked; errors identify the file and field or line. Invalid files cannot be saved. Existing legacy library records remain readable.
 
 Package: **`com.henry.chord`**. Launcher: **`com.henry.chord/.MainActivity`**. Debug APK: **`app/build/outputs/apk/debug/app-debug.apk`**. Room schema: **4**, with safe migrations from 1/2/3. Preferences use DataStore.
 
 Read the [performance/editor/backup format guide](docs/PERFORMANCE-EDITOR-BACKUP.md) and [final acceptance evidence](qa-artifacts/REPORT.md). Earlier phase reports below are historical; the final audit states exactly which checks were rerun and which coverage remains limited.
 
-Release audit: **42 JVM tests and 25 distinct Android functional tests passed** on the existing API-30 emulator. The debug APK is installed and runnable; all phases were reviewed. **Production acceptance is still conditional** because measured emulator rendering jank and physical Pixel 9/recent-Android/TalkBack coverage remain open. The report includes exact results, 76 emulator screenshots, preservation checks and severity-ranked limitations.
+The [rc2 interface/import verification](qa-artifacts/refinement/REPORT.md) records the latest executed checks and screenshots. The earlier [release audit](qa-artifacts/REPORT.md) is historical rc1 evidence, including rendering-jank and physical Pixel 9/recent-Android/TalkBack coverage limits; it is not an unconditional production sign-off. Phase summaries below describe the architecture/history; the rc2 simplifications above supersede their removed UI features.
 
-## Phase 4
+## Historical Phase 4
 
 - Ranked offline title/artist/album/tag/lyric search, Unicode normalization, word fragments and highlighted lyric excerpts.
 - Paged compact artwork rows, Favorites/Recent views, sorting/filtering and preserved reader-return context.
@@ -22,7 +26,7 @@ Release audit: **42 JVM tests and 25 distinct Android functional tests passed** 
 
 Read the [library/search implementation guide](docs/PHASE4.md) and [Phase 4 device evidence](docs/phase4-evidence/RESULTS.md).
 
-## Phase 3
+## Historical Phase 3
 
 - Persistent Chord symbols / Roman numerals / Both preferences, with major/minor and diatonic spelling context.
 - Separate immutable canonical chords and saved transposition; current-key labels and slash basses transpose together.
@@ -31,7 +35,7 @@ Read the [library/search implementation guide](docs/PHASE4.md) and [Phase 4 devi
 
 Read the [theory conventions and implementation](docs/PHASE3.md) and [Phase 3 emulator evidence](docs/phase3-evidence/RESULTS.md).
 
-## Phase 2
+## Historical Phase 2
 
 - Versioned canonical songs with stable UUIDs, multiple arrangements, rich metadata, sections and exact Unicode lyric/chord segments.
 - Data-preserving Room 1→2 migration; personal favorites, notes, last-played and key offsets stored separately from song content.
@@ -42,7 +46,7 @@ Read the [theory conventions and implementation](docs/PHASE3.md) and [Phase 3 em
 - Managed offline artwork, validated images, cached square thumbnails and deterministic placeholders.
 - Portable collection ZIP export/re-import with all arrangements and local images.
 
-The original searchable library, favorites, editor, reader, transposition, capo, guitar/piano diagrams, Roman numerals, fullscreen, auto-scroll, notes, setlists and settings remain available. Six original demo songs are seeded only on first installation. No account, paid API, Internet permission or broad storage permission is required.
+These features were delivered in those phases; the rc2 removals above supersede the older setlist and reader-option UI. Six original demo songs are seeded only on first installation. No account, paid API, Internet permission or broad storage permission is required.
 
 Read the [phase-2 format and implementation guide](docs/PHASE2.md), [canonical JSON schema](docs/song-v1.schema.json), and [actual device validation](docs/evidence/PHASE2-RESULTS.md).
 
@@ -67,7 +71,8 @@ adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
 adb push docs\demo-packs /sdcard/Documents/ChordroomPhase2
 adb shell am instrument -w -e class com.henry.chord.Phase2EngineTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 adb shell am instrument -w -e class com.henry.chord.Phase2PickerTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
-adb shell am instrument -w -e class com.henry.chord.Phase3InteractionTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.henry.chord.RefinementUiTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e class com.henry.chord.RefinementImportTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 adb shell am instrument -w -e class com.henry.chord.Phase4SearchTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 adb shell am instrument -w -e class com.henry.chord.Phase4LibraryTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 adb shell am force-stop com.henry.chord
@@ -85,7 +90,7 @@ adb shell am instrument -w -r -e class com.henry.chord.ReleaseEngineTest,com.hen
 adb shell am instrument -w -r -e class com.henry.chord.ReleasePerformanceTest,com.henry.chord.ReleaseEditorTest,com.henry.chord.ReleasePickerTest com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-The real-picker tests assume the API 30 emulator's internal-storage label `sdk_gphone_x86`; adapt that selector for another device. `ReleaseEditorTest` exports `Documents/Chordroom-release-backup.zip` through the system picker and merges it back without replacing existing songs. Delete a previous QA backup with that exact name before rerunning, or adapt the fixture filename. Do not use destructive test setup on a personal library. Use `connectedDebugAndroidTest` only with a dedicated disposable test AVD; direct ADB instrumentation is used for the owner's existing installation.
+The real-picker tests assume the API 30 emulator's internal-storage label `sdk_gphone_x86`; adapt that selector for another device. `ReleaseEditorTest` exports a timestamped `Documents/Chordroom-release-backup-*.zip` through the system picker and merges it back without replacing existing songs. Do not use destructive test setup on a personal library. Use `connectedDebugAndroidTest` only with a dedicated disposable test AVD; direct ADB instrumentation is used for the owner's existing installation. The runner supports `-ServerPort`/`-Serial` for machines with conflicting ADB installations. The optional owner-snapshot cleanup test requires an explicit opt-in argument and private snapshot files.
 
 ## Importing and backing up your songs
 
@@ -93,7 +98,7 @@ Open **Import → Choose files or ZIP** to select one or many UTF-8 native JSON/
 
 For example, a folder can contain `songs/Title/song.json` and `assets/cover.png`; use `artwork.path: "assets/cover.png"` in the JSON. See the [schema and format examples](docs/PHASE2.md). In the reader, use **Edit song** for native section/anchor editing and **Song links** for verified user-provided links or clearly labeled searches.
 
-**Settings → Export full backup ZIP** saves all versions, artwork, favorites, notes, offsets, history, setlists and preferences. **Restore full backup** validates and previews the archive. Merge retains existing edits when IDs match; Replace needs an explicit destructive-data acknowledgement. The older **Import → Export collection** contains portable content/artwork only. For a single song use the reader's ChordPro export button or **Reader options → Export native JSON**.
+**Settings → Backup & restore → Export full backup ZIP** saves all versions, artwork, favorites, notes, offsets, history and preferences, including legacy setlist records for compatibility. **Restore full backup** validates and previews the archive. Merge retains existing edits when IDs match; Replace needs an explicit destructive-data acknowledgement. **Import → Export collection** contains portable content/artwork only. For a single song use the reader's ChordPro export button. Native JSON files are also stored inside collection/full-backup archives.
 
 ## Installing on a physical Pixel 9
 
@@ -114,6 +119,6 @@ Android keeps the library in `/data/user/0/com.henry.chord/databases/chord.db`, 
 
 Per batch: 2,000 arrangements / 10,000 entries / 256 MB expanded. Each song is limited to 4 MB, each image to 12 MB and 32 megapixels. Supported song suffixes: `.json`, `.cho`, `.chopro`, `.chordpro`, `.pro`, `.txt`; artwork: JPG/PNG/WebP. Text must be valid UTF-8.
 
-Unknown chord strings and source directives are preserved with warnings. Ambiguous TXT spacing never becomes accepted anchors silently. Unsupported future JSON schemas fail per file while valid files remain importable. No source URI is needed after import.
+New imports reject malformed JSON, unknown fields, invalid field types/IDs, unsupported chord tokens/directives, invalid metadata/links and missing declared local artwork with per-file errors. Native imports require schema 1. Existing older library data is preserved through the backward-compatible decoder. Ambiguous TXT spacing still requires explicit preview approval. No source URI is needed after import.
 
 Full backups add a 10,000-arrangement / 12,000-member / 512 MB expanded archive boundary; ordinary staged import limits above remain unchanged. Release signing, broader physical-device/accessibility coverage, advanced ChordPro constructs and a complete guitar-voicing database remain additional work. Historical phase screenshots and validation are retained under `docs/`; current known limitations are listed in the final audit.

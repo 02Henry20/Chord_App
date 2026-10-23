@@ -1,5 +1,7 @@
 # Music theory and chord interaction
 
+Historical Phase 3 notes. rc2 keeps the theory engine but removes inversion choices and the instrument switch inside chord dialogs. Piano shows one full root-position chord, guitar shows one validated diagram, and instrument/label choices are made in expandable Settings. See the [current verification](../qa-artifacts/refinement/REPORT.md).
+
 Phase 3 is native Kotlin/Compose, entirely offline. Room remains at schema 2. App version 3 upgrades the installed app using `adb install -r`; no reset or destructive migration is used.
 
 ## Labels and key context

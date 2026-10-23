@@ -1,5 +1,7 @@
 # Performance reader, editing, setlists and full backups
 
+Historical rc1 architecture/format notes. **rc2 removes the setlist UI, reader options/modes/jumps/sharing/native-JSON-export controls, diagram inversions and chord-dialog instrument switches.** The reader always combines chords and lyrics; instrument and label preferences live in expandable Settings with live previews. Existing setlist records remain only for backward-compatible persistence/backups. See the [current import guide](SONG-IMPORT-GUIDE.txt) and [rc2 verification](../qa-artifacts/refinement/REPORT.md) for current behavior.
+
 Native Kotlin / Compose; no WebView, JavaScript engine, account or network permission.
 
 ## Reader layout and controls

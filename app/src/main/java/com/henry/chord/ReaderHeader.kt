@@ -30,7 +30,7 @@ fun SongLinksDialog(song: Song, links: MusicLinks, dismiss: () -> Unit, open: (S
             val raw = if (service == LinkService.SPOTIFY) links.spotify else links.youtube
             val valid = raw?.let { SongLinks.valid(it, service) }
             val name = if (service == LinkService.SPOTIFY) "Spotify" else "YouTube"
-            Button({ open(valid ?: SongLinks.search(song.title, song.artist, service)) }, Modifier.fillMaxWidth().padding(top = 12.dp)) { Text(if (valid != null) "Open $name ${if (service == LinkService.SPOTIFY) "track" else "video"}" else "Search $name") }
+            Button({ open(valid ?: SongLinks.search(song.title, song.artist, service)) }, Modifier.fillMaxWidth().padding(top = 12.dp)) { ServiceIcon(service); Spacer(Modifier.width(10.dp)); Text(if (valid != null) "Open $name ${if (service == LinkService.SPOTIFY) "track" else "video"}" else "Search $name") }
             if (raw != null && valid == null) Text("The stored $name link is invalid. Edit the song to correct it.", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
         }
     } }, confirmButton = { TextButton(dismiss) { Text("Done") } })

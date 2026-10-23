@@ -23,69 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
 @Composable
-fun SetlistsScreen(sets: List<Setlist>, entries: List<SetlistEntry>, open: (Long) -> Unit, create: (String) -> Unit) {
-    var dialog by remember { mutableStateOf(false) }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-        item { PageTitle("Set the mood.", "A place for every session.") { FilledTonalIconButton({ dialog = true }) { Icon(Icons.Outlined.Add, "New setlist") } }; Eyebrow("Your setlists · ${sets.size}"); Spacer(Modifier.height(18.dp)) }
-        items(sets, key = { it.id }) { set ->
-            OutlinedCard(onClick = { open(set.id) }, modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
-                Column(Modifier.padding(22.dp)) { Icon(Icons.Outlined.QueueMusic, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp)); Spacer(Modifier.height(24.dp)); Text(set.name, fontFamily = Serif, fontSize = 25.sp); Spacer(Modifier.height(8.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Text("${entries.count { it.setlistId == set.id }} songs", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f)); Icon(Icons.Outlined.ArrowForward, null, tint = MaterialTheme.colorScheme.primary) } }
-            }
-        }
-        if (sets.isEmpty()) item { EmptyState("Bring your songs together", "Order a queue for practice or the stage.", "Create a setlist", { dialog = true }) }
-    }
-    if (dialog) NameDialog("New setlist", "", { dialog = false }) { name -> dialog = false; create(name) }
-}
-@Composable
-fun NameDialog(title: String, initial: String, dismiss: () -> Unit, save: (String) -> Unit) {
-    var name by rememberSaveable { mutableStateOf(initial) }
-    AlertDialog(onDismissRequest = dismiss, title = { Text(title, fontFamily = Serif) }, text = { OutlinedTextField(name, { name = it }, label = { Text("Setlist name") }, singleLine = true) }, confirmButton = { TextButton({ save(name.trim()) }, enabled = name.isNotBlank()) { Text("Save") } }, dismissButton = { TextButton(dismiss) { Text("Cancel") } })
-}
-@Composable
-fun SettingsScreen(prefs: Preferences, clearHistory: () -> Unit, database: ChordDatabase, save: (Preferences) -> Unit) {
-    var confirmHistory by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-        PageTitle("Make it yours.", "Small adjustments. Better sessions.")
-        Eyebrow("Appearance")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ThemeMode.entries.forEach { theme -> FilterChip(prefs.theme == theme, { save(prefs.copy(theme = theme)) }, { Text(theme.title) }, modifier = Modifier.testTag("theme-${theme.name}")) } }
-        Text("System follows your device appearance. Violet, teal and amber accents stay readable in both themes.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("Your instrument")
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { listOf("Guitar", "Piano").forEach { instrument -> FilterChip(prefs.instrument == instrument, { save(prefs.copy(instrument = instrument)) }, { Text(instrument) }, leadingIcon = { Icon(if (instrument == "Guitar") Icons.Outlined.MusicNote else Icons.Outlined.Piano, null, Modifier.size(18.dp)) }) } }
-        SectionTitle("Song reader")
-        Text("Text size · ${prefs.fontSize} sp", fontSize = 14.sp)
-        Slider(prefs.fontSize.toFloat(), { save(prefs.copy(fontSize = it.toInt())) }, valueRange = 14f..30f, steps = 15)
-        Text("Line spacing · ${"%.2f".format(prefs.lineSpacing)}",fontSize=14.sp)
-        Slider(prefs.lineSpacing,{ save(prefs.copy(lineSpacing=it)) },valueRange=1f..2f)
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("Theme","Blue","Amber").forEach { color -> FilterChip(prefs.chordColor == color,{ save(prefs.copy(chordColor=color)) },{ Text(color) }) } }
-        Text("Auto-scroll · ${prefs.scrollSpeed.toInt()} dp / second",fontSize=14.sp)
-        Slider(prefs.scrollSpeed,{ save(prefs.copy(scrollSpeed=it)) },valueRange=8f..100f)
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf(0,3,5).forEach { seconds -> FilterChip(prefs.leadIn == seconds,{ save(prefs.copy(leadIn=seconds)) },{ Text(if (seconds == 0) "No lead-in" else "$seconds sec") }) } }
-        SheetDisplay.entries.forEach { display -> TextButton({ save(prefs.copy(sheetDisplay=display)) }) { Text((if (prefs.sheetDisplay == display) "✓ " else "") + display.title) } }
-        SettingSwitch("Keep screen awake", "While a song is open", prefs.keepAwake) { save(prefs.copy(keepAwake = it)) }
-        SectionTitle("Chord labels")
-        Text("Roman numeral / scale-degree harmony", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        LabelMode.entries.forEach { mode ->
-            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { save(prefs.copy(chordLabels = mode)) }.testTag("label-${mode.name}"), verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(prefs.chordLabels == mode, null)
-                Text(mode.title, Modifier.weight(1f), fontSize = 14.sp)
-                Text(when (mode) { LabelMode.SYMBOLS -> "C  G  Am"; LabelMode.ROMAN -> "I  V  vi"; LabelMode.BOTH -> "C (I)" }, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        Text("Root degrees and chord qualities, not inferred harmonic functions. Minor uses the natural-minor scale; raised notes carry #. Slash numbers show the bass scale degree: C/E in C major is I/3. b = flat, # = sharp, ° = diminished, ø7 = half-diminished. An unknown key or mode keeps chord symbols visible.", fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("Note spelling")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Spelling.entries.forEach { value -> FilterChip(prefs.spelling == value, { save(prefs.copy(spelling = value)) }, { Text(value.title) }) } }
-        Text("Auto uses common keys. Chords retain their scale-degree spelling, so some keys need double accidentals.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("On this device")
-        TextButton({ confirmHistory = true }) { Text("Clear recent history") }
-        Text("Favorites, songs and setlists are kept when history is cleared.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        BackupControls(database)
-        SectionTitle("A simpler songbook")
-        Text("Chordroom · Native offline songbook\n\nYour library, favorites, notes, setlists and reader adjustments are saved locally. Six original demo songs are included.", fontSize = 13.sp, lineHeight = 22.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(32.dp))
-    }
-    if (confirmHistory) AlertDialog(onDismissRequest = { confirmHistory = false }, title = { Text("Clear recent history?") }, text = { Text("This removes viewing history on this device. Songs and favorites stay in your library.") }, confirmButton = { TextButton({ clearHistory(); confirmHistory = false }) { Text("Clear history") } }, dismissButton = { TextButton({ confirmHistory = false }) { Text("Cancel") } })
-}
-@Composable
 fun SettingSwitch(title: String, detail: String, checked: Boolean, change: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).clickable { change(!checked) }, verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(title, fontSize = 15.sp); Text(detail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }; Switch(checked, change, modifier = Modifier.testTag(title)) }; HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
@@ -189,5 +126,5 @@ fun EditorScreen(song: Song?, dao: ChordDao, back: () -> Unit, deleted: () -> Un
         Spacer(Modifier.height(32.dp))
     }
     if (discard) AlertDialog(onDismissRequest={ discard=false },title={ Text("Discard unsaved changes?") },text={ Text("Saved songs stay unchanged. Your current edits will be lost.") },confirmButton={ TextButton({ pendingArtwork?.let { java.io.File(it).delete() }; back() }) { Text("Discard changes") } },dismissButton={ TextButton({ discard=false }) { Text("Keep editing") } })
-    if (deleting && song != null) AlertDialog(onDismissRequest = { deleting = false }, title = { Text("Delete ${song.title}?") }, text = { Text("This removes the song and its notes from your library and all setlists.") }, confirmButton = { TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.delete(song); deleted() } }) { Text("Delete") } }, dismissButton = { TextButton({ deleting = false }) { Text("Cancel") } })
+    if (deleting && song != null) AlertDialog(onDismissRequest = { deleting = false }, title = { Text("Delete ${song.title}?") }, text = { Text("This removes the song and its notes from your library.") }, confirmButton = { TextButton({ scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.delete(song); deleted() } }) { Text("Delete") } }, dismissButton = { TextButton({ deleting = false }) { Text("Cancel") } })
 }

@@ -44,13 +44,14 @@ fun ImportScreen(dao: ChordDao, library: () -> Unit) {
     val session = ui.session
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 30.dp)) {
         item {
-            PageTitle("Bring your songs.", "Chordroom · A library that stays with you.")
+            PageTitle("Bring your songs.", "")
             if (session == null && !ui.busy) {
                 Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(24.dp)) { Icon(Icons.Outlined.LibraryAdd, null, Modifier.size(34.dp)); Spacer(Modifier.height(20.dp)); Text("A whole collection.\nOne local home.", fontFamily = Serif, fontSize = 29.sp); Spacer(Modifier.height(12.dp)); Text("Choose files, a recursive folder or a ZIP. Preview every song and resolve duplicates before anything is saved.", fontSize = 14.sp, lineHeight = 22.sp) } }
                 Spacer(Modifier.height(20.dp))
                 Button({ documents.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Choose files or ZIP") }
+                Spacer(Modifier.height(12.dp))
                 OutlinedButton({ folder.launch(null) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.FolderOpen, null); Spacer(Modifier.width(8.dp)); Text("Choose a folder") }
-                Text("JSON · ChordPro · TXT · ZIP\nUp to 2,000 arrangements / 256 MB expanded per batch. Artwork is copied into private storage. No ongoing access to the source is needed.", Modifier.padding(vertical = 20.dp), fontSize = 13.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("JSON · ChordPro · TXT · ZIP\nFiles are syntax-checked before import. Invalid files appear in the error report. Up to 2,000 arrangements / 256 MB per batch.", Modifier.padding(vertical = 20.dp), fontSize = 13.sp, lineHeight = 21.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton({ export.launch("chordroom-collection.zip") }, Modifier.fillMaxWidth()) { Icon(Icons.Outlined.Archive, null); Spacer(Modifier.width(8.dp)); Text("Export collection") }
             }
             if (ui.busy) {
@@ -75,7 +76,7 @@ fun ImportScreen(dao: ChordDao, library: () -> Unit) {
                     val pending = session.candidates.count { !it.committed && it.choice != ImportChoice.SKIP && (!it.needsReview || it.reviewed) }
                     Button(controller::commit, Modifier.fillMaxWidth().heightIn(min = 52.dp), enabled = pending > 0) { Text("Import selected ($pending)") }
                     if (pending == 0 && session.candidates.any { !it.committed }) TextButton(controller::commit) { Text("Finish without importing") }
-                    Text("Duplicates default to Skip. TXT alignment proposals need explicit review. Replacing retains favorites, notes, key offsets and setlist references.", Modifier.padding(vertical = 12.dp), fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Duplicates default to Skip. TXT alignment proposals need explicit review. Replacing retains favorites, notes, key offsets and existing references.", Modifier.padding(vertical = 12.dp), fontSize = 12.sp, lineHeight = 19.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else Button(library, Modifier.fillMaxWidth()) { Text("View library") }
                 TextButton(controller::reset) { Text(if (session.finished) "New import" else "Discard staged import") }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("All", "Warnings", "Duplicates").forEach { FilterChip(filter == it, { filter = it }, { Text(it) }) } }
@@ -95,7 +96,7 @@ private fun ImportCandidateRow(candidate: ImportCandidate, preview: () -> Unit, 
     Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LocalArtwork(candidate.preview, candidate.id, "Cover of ${candidate.title}", Modifier.size(56.dp))
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(candidate.title, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text("${candidate.artist} · ${candidate.arrangement} · ${candidate.originalKey ?: "Key unknown"}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(candidate.source, fontSize = 10.sp, maxLines = 1) }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(candidate.title, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text("${candidate.artist} · ${candidate.arrangement}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(candidate.source, fontSize = 10.sp, maxLines = 1) }
             IconButton(preview) { Icon(Icons.Outlined.Visibility, "Preview ${candidate.title}") }
         }
         candidate.duplicateReason?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 8.dp)) }
@@ -128,7 +129,7 @@ private fun ImportPreview(candidate: ImportCandidate, dao: ChordDao, dismiss: ()
                 existing?.let { match ->
                     Text("Existing arrangement", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
                     Text("${match.title}\n${match.artist} · ${match.arrangementName} · ${match.key.ifBlank { "Unknown key" }}", fontSize = 13.sp)
-                    Text("Replacing keeps its personal state and setlist references. Compare this sheet before choosing Replace.", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(vertical = 8.dp))
+                    Text("Replacing keeps its personal state and existing references. Compare this sheet before choosing Replace.", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(vertical = 8.dp))
                     val old = remember(match.documentJson) { Canonical.decode(match.documentJson).single().document.arrangements.single() }
                     old.sections.firstOrNull()?.lines?.take(2)?.forEach { CanonicalSheetLine(it, 13, { raw -> raw }, { raw -> raw }, {}) }
                     Text("Incoming arrangement", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))

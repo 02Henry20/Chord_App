@@ -1,0 +1,8 @@
+Package: com.henry.chord
+Activity: com.henry.chord/.MainActivity
+Version: 1.0.0-rc2 (8)
+APK: app/build/outputs/apk/debug/app-debug.apk
+Bytes: 21768840
+SHA256: 2c334b3d77d3bd3da3cf759afae2cb92d52307efec2199d6c006d6593bd92a19
+Launcher source SHA256: 568ba1571624d3fd3193301a691b7a03652e85b9754f286f910c8f711ceb3f1d
+Installed APK matches final build: true

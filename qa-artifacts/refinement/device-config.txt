@@ -1,0 +1,10 @@
+Pixel_4_API_30
+30
+1
+Physical size: 1080x2280
+Override size: 1080x2424
+Physical density: 440
+Override density: 420
+1.0
+Physical size: 1080x2280
+Physical density: 440

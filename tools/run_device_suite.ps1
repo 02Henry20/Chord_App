@@ -3,10 +3,11 @@ param(
     [Parameter(Mandatory=$true)][string]$Output,
     [string]$Adb = 'adb',
     [string]$Serial = 'emulator-5554',
+    [int]$ServerPort = 5037,
     [hashtable]$Arguments = @{}
 )
 $ErrorActionPreference = 'Stop'
-$runnerArguments = @('-s', $Serial, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', $Classes)
+$runnerArguments = @('-P', [string]$ServerPort, '-s', $Serial, 'shell', 'am', 'instrument', '-w', '-r', '-e', 'class', $Classes)
 foreach ($key in $Arguments.Keys) { $runnerArguments += @('-e', [string]$key, [string]$Arguments[$key]) }
 $runnerArguments += 'com.henry.chord.test/androidx.test.runner.AndroidJUnitRunner'
 & $Adb @runnerArguments 2>&1 | Set-Content -LiteralPath $Output

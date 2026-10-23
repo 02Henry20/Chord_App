@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.*
 import kotlinx.coroutines.launch
@@ -56,8 +57,6 @@ fun ChordApp(database: ChordDatabase) {
         )
     }
     val songs by remember(dao) { dao.librarySummaries() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
-    val setlists by remember(dao) { dao.setlists() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
-    val entries by remember(dao) { dao.entries() }.collectAsState(emptyList(), context = kotlinx.coroutines.Dispatchers.Main.immediate)
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -66,9 +65,7 @@ fun ChordApp(database: ChordDatabase) {
         if (!flags.getBoolean("seeded", false)) {
             database.withTransaction {
                 if (dao.count() == 0) {
-                    val ids = demoSongs.map { dao.insert(it) }
-                    val set = dao.insertSetlist(Setlist(name = "The living room session"))
-                    ids.take(3).forEachIndexed { i, id -> dao.addEntry(SetlistEntry(set, id, i)) }
+                    demoSongs.forEach { dao.insert(it) }
                 }
             }
             flags.edit().putBoolean("seeded", true).apply()
@@ -79,7 +76,7 @@ fun ChordApp(database: ChordDatabase) {
         val nav = rememberNavController()
         val back by nav.currentBackStackEntryAsState()
         val route = back?.destination?.route ?: "home"
-        val destinations = listOf(Triple("home", "Home", Icons.Outlined.Home), Triple("library", "Library", Icons.Outlined.LibraryMusic), Triple("setlists", "Setlists", Icons.Outlined.QueueMusic), Triple("import", "Import", Icons.Outlined.FileDownload), Triple("settings", "Settings", Icons.Outlined.Tune))
+        val destinations = listOf(Triple("home", "Home", Icons.Outlined.Home), Triple("library", "Library", Icons.Outlined.LibraryMusic), Triple("import", "Import", Icons.Outlined.FileDownload), Triple("settings", "Settings", Icons.Outlined.Tune))
         val topLevel = ready && back?.destination != null && destinations.any { it.first == route }
         val windowSize = androidx.compose.ui.platform.LocalWindowInfo.current.containerSize
         val wideNavigation = windowSize.width > windowSize.height
@@ -89,32 +86,28 @@ fun ChordApp(database: ChordDatabase) {
         }
         val open: (Song) -> Unit = { song -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(song.id) }; nav.navigate("reader/${song.id}") }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 if (topLevel && wideNavigation) NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
                     destinations.forEach { (path, label, icon) -> NavigationRailItem(selected = route == path, onClick = { navigate(path) }, icon = { Icon(icon, label) }, label = { Text(label, fontSize = 11.sp) }, alwaysShowLabel = false) }
                 }
-            Scaffold(modifier = Modifier.weight(1f), containerColor = Color.Transparent, topBar={ if (topLevel) RainbowAccent() }, bottomBar = {
+            Scaffold(modifier = Modifier.weight(1f), contentWindowInsets = WindowInsets(0,0,0,0), containerColor = Color.Transparent, topBar={ if (topLevel) RainbowAccent() }, bottomBar = {
                 if (topLevel && !wideNavigation) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                     destinations.forEach { (path, label, icon) -> NavigationBarItem(selected = route == path, onClick = { navigate(path) }, icon = { Icon(icon, label) }, label = { Text(label, fontSize = 11.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer)) }
                 }
             }) { padding ->
                 if (!ready) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding)) {
-                    composable("home") { HomeScreen(songs, setlists, entries, { value -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.favorite(value.id, !value.favorite) } }, open, { nav.navigate("library") }, { nav.navigate("setlist/$it") }, { nav.navigate("editor/0") }, { nav.navigate("import") }) }
-                    composable("library") { LibraryScreen(dao, songs, prefs, open, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.favorite(it.id, !it.favorite) } }, { nav.navigate("editor/0") }) }
-                    composable("setlists") { SetlistsScreen(setlists, entries, { nav.navigate("setlist/$it") }, { name -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { val id = dao.insertSetlist(Setlist(name = name)); nav.navigate("setlist/$id") } }) }
-                    composable("setlist/{id}") { entry ->
-                        val id = entry.arguments?.getString("id")?.toLongOrNull()
-                        val set = setlists.find { it.id == id }
-                        if (set != null) SetlistScreen(set, songs, entries.filter { it.setlistId == id }.sortedBy { it.position }, { nav.popBackStack() }, { selected -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(selected.songId) }; nav.navigate("reader/${selected.songId}?setlist=${set.id}&entry=${selected.entryId}") }, dao, { nav.popBackStack() })
-                    }
+                    composable("home") { HomeScreen(songs, { value -> scope.launch { dao.favorite(value.id, !value.favorite) } }, open, { nav.navigate("library") }, { nav.navigate("editor/0") }, { nav.navigate("import") }) }
+                    composable("library") { LibraryScreen(dao, songs, prefs, open, { scope.launch { dao.favorite(it.id, !it.favorite) } }, { nav.navigate("editor/0") }) }
                     composable("import") { ImportScreen(dao, { nav.navigate("library") }) }
                     composable("settings") { SettingsScreen(prefs, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.clearHistory() } }, database) { p -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { settings.save(p) } } }
-                    composable("reader/{id}?setlist={setlist}&entry={entry}") { entry ->
+                    composable("reader/{id}") { entry ->
                         val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L
                         val song by remember(id) { dao.observeSong(id) }.collectAsState(null, context = kotlinx.coroutines.Dispatchers.Main.immediate)
-                        val setId = entry.arguments?.getString("setlist")?.toLongOrNull()
-                        song?.let { full -> ReaderScreen(full, prefs, setlists, entries, songs, setId, dao, { nav.popBackStack() }, { nav.navigate("editor/${full.id}") }, { next -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(next.id) }; nav.navigate("reader/${next.id}?setlist=$setId") { popUpTo("reader/{id}?setlist={setlist}&entry={entry}") { inclusive = true } } }, queueEntryId=entry.arguments?.getString("entry"), openQueue={ selected -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.markPlayed(selected.songId) }; nav.navigate("reader/${selected.songId}?setlist=$setId&entry=${selected.entryId}") { popUpTo("reader/{id}?setlist={setlist}&entry={entry}") { inclusive=true } } }) }
+                        song?.let { full -> ReaderScreen(full, prefs, songs, dao, { nav.popBackStack() }, { nav.navigate("editor/${full.id}") }, { next ->
+                            scope.launch { dao.markPlayed(next.id) }
+                            nav.navigate("reader/${next.id}") { popUpTo("reader/{id}") { inclusive = true } }
+                        }) }
                     }
                     composable("editor/{id}") { entry -> val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L
                         val full by remember(id) { dao.observeSong(id) }.collectAsState(null, context = kotlinx.coroutines.Dispatchers.Main.immediate)
@@ -132,7 +125,7 @@ fun Eyebrow(text: String) { Text(text.uppercase(), color = MaterialTheme.colorSc
 @Composable
 fun PageTitle(title: String, subtitle: String, action: (@Composable () -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, fontFamily = Serif, fontSize = 36.sp, letterSpacing = (-1).sp); Spacer(Modifier.height(6.dp)); Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) }
+        Column(Modifier.weight(1f)) { Text(title, fontFamily = Serif, fontSize = 36.sp, letterSpacing = (-1).sp); if (subtitle.isNotBlank()) { Spacer(Modifier.height(6.dp)); Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) } }
         action?.invoke()
     }
 }
@@ -141,7 +134,23 @@ fun SectionTitle(title: String, action: String? = null, onClick: () -> Unit = {}
     Row(Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) { Text(title, fontFamily = Serif, fontSize = 23.sp, modifier = Modifier.weight(1f)); if (action != null) TextButton(onClick) { Text(action, fontSize = 12.sp) } }
 }
 @Composable
-fun HomeScreen(songs: List<Song>, sets: List<Setlist>, entries: List<SetlistEntry>, favorite: (Song) -> Unit, open: (Song) -> Unit, library: () -> Unit, openSet: (Long) -> Unit, newSong: () -> Unit, onImport: () -> Unit) {
+fun HomeScreen(songs: List<Song>, favorite: (Song) -> Unit, open: (Song) -> Unit, library: () -> Unit, newSong: () -> Unit, onImport: () -> Unit) {
+    var pickedId by remember { mutableStateOf<Long?>(null) }
+    val currentSongs by rememberUpdatedState(songs)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    // Pick again whenever Home becomes visible; metadata/history emissions do not reshuffle the card.
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) pickedId = currentSongs.randomOrNull()?.id
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(songs.map { it.id }, pickedId) {
+        if (songs.isNotEmpty() && songs.none { it.id == pickedId }) pickedId = songs.random().id
+    }
+    val picked = songs.firstOrNull { it.id == pickedId }
+    fun shuffle() { pickedId = songs.filter { it.id != pickedId }.ifEmpty { songs }.randomOrNull()?.id }
     LazyColumn(Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 30.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -150,15 +159,17 @@ fun HomeScreen(songs: List<Song>, sets: List<Setlist>, entries: List<SetlistEntr
             }
             Eyebrow("A little practice. A little progress.")
             Text("Make room\nfor music.", fontFamily = Serif, fontSize = 46.sp, lineHeight = 49.sp, letterSpacing = (-1.5).sp, modifier = Modifier.padding(top = 10.dp, bottom = 14.dp))
-            Text("Your songs, right where you left them.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
             Spacer(Modifier.height(28.dp))
-            val recent = songs.maxByOrNull { it.lastOpened }
-            if (recent != null) Surface(onClick = { open(recent) }, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.primary) {
+            if (picked != null) Surface(onClick = { open(picked) }, modifier = Modifier.testTag("pick-up-play"), shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.primary) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { Text("PICK UP & PLAY", fontSize = 10.sp, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onPrimary); Spacer(Modifier.weight(1f)); Icon(Icons.Outlined.NorthEast, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(19.dp)) }
-                    Spacer(Modifier.height(24.dp)); Text(recent.title, fontFamily = Serif, fontSize = 28.sp, color = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.height(6.dp)); Text("${recent.artist}   ·   Key ${KeyContext.from(recent.key,recent.tonalMode)?.let { Theory.currentKey(it,recent.transpose).name } ?: Music.transpose(recent.key, recent.transpose)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.height(22.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.onPrimary); Spacer(Modifier.width(8.dp)); Text(if (recent.lastOpened > 0) "Continue playing" else "Open song", fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("PICK UP & PLAY", fontSize = 10.sp, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.weight(1f))
+                        IconButton(::shuffle, enabled = songs.size > 1) { Icon(Icons.Outlined.Shuffle, "Shuffle song", tint = MaterialTheme.colorScheme.onPrimary) }
+                    }
+                    Spacer(Modifier.height(12.dp)); Text(picked.title, fontFamily = Serif, fontSize = 28.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("picked-song"))
+                    Spacer(Modifier.height(6.dp)); Text(picked.artist, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.height(22.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.onPrimary); Spacer(Modifier.width(8.dp)); Text("Open song", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary) }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -169,14 +180,14 @@ fun HomeScreen(songs: List<Song>, sets: List<Setlist>, entries: List<SetlistEntr
         }
         items(songs.sortedByDescending { it.lastOpened }.take(3), key = { it.id }) { SongRow(it, { open(it) }, { favorite(it) }) }
         if (songs.isEmpty()) item { EmptyState("Your first song starts here", "Write an original or import a chord sheet.", "Write a song", newSong) }
-        item { if (sets.isNotEmpty()) { SectionTitle("Ready for a session"); val set = sets.first(); Surface(onClick = { openSet(set.id) }, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp)) { Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.QueueMusic, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(set.name, fontWeight = FontWeight.Medium); Text("${entries.count { it.setlistId == set.id }} songs · Your order, your pace", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp)) }; Icon(Icons.Outlined.ChevronRight, null) } } }; Spacer(Modifier.height(28.dp)); Eyebrow("Made for the music, free of distractions.") }
+
     }
 }
 @Composable
 fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit, warm: Boolean = false) {
     val background=if (warm) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer
     val foreground=if (warm) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-    OutlinedCard(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(14.dp), colors = CardDefaults.outlinedCardColors(containerColor = background,contentColor=foreground)) { Row(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, Modifier.size(21.dp), tint = foreground); Spacer(Modifier.width(8.dp)); Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium) } }
+    OutlinedCard(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(14.dp), colors = CardDefaults.outlinedCardColors(containerColor = background,contentColor=foreground)) { Row(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, Modifier.size(21.dp), tint = foreground); Spacer(Modifier.width(8.dp)); Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) } }
 }
 @Composable
 fun EmptyState(title: String, body: String, action: String, onClick: () -> Unit) { Column(Modifier.fillMaxWidth().padding(vertical = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp)); Text(title, fontFamily = Serif, fontSize = 24.sp, modifier = Modifier.padding(top = 16.dp)); Text(body, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 10.dp)); TextButton(onClick) { Text(action) } } }

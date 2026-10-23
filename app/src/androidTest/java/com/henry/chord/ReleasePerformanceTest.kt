@@ -55,12 +55,12 @@ class ReleasePerformanceTest {
             assertTrue("Keep-awake flag enabled",awake())
             Settings(context).save(Settings(context).flow.first().copy(keepAwake=false)); Thread.sleep(350); assertFalse("Keep-awake option is applied",awake())
             Settings(context).save(Settings(context).flow.first().copy(keepAwake=true))
-            click("Chord labels: Chord symbols. Change for this reader",true); shot("02-reader-roman")
+            Settings(context).save(Settings(context).flow.first().copy(chordLabels=LabelMode.ROMAN)); Thread.sleep(400); shot("02-reader-roman")
             click("Transpose up",true); click("Transpose up",true)
             assertTrue(device.wait(Until.hasObject(By.text("KEY D")),5000)); click("Chord I. Sounding D",true)
             assertTrue(device.wait(Until.hasObject(By.text("D4  F#4  A4")),5000)); shot("03-roman-tap-piano-D")
-            click("Guitar"); assertTrue(device.wait(Until.hasObject(By.textContains("Voicing")),5000)); shot("04-guitar-D")
-            click("Done"); click("Chord labels: Roman numerals. Change for this reader",true); shot("05-reader-both")
+            Settings(context).save(Settings(context).flow.first().copy(instrument="Guitar")); assertTrue(device.wait(Until.hasObject(By.descContains("Six string guitar")),5000)); shot("04-guitar-D")
+            click("Done"); Settings(context).save(Settings(context).flow.first().copy(chordLabels=LabelMode.BOTH,instrument="Piano")); Thread.sleep(400); shot("05-reader-both")
             click("Fullscreen reader",true); device.wait(Until.findObject(By.text("Got it")),1500)?.click(); Thread.sleep(350); shot("06-fullscreen-paused")
             device.pressKeyCode(android.view.KeyEvent.KEYCODE_SPACE); assertTrue(device.wait(Until.hasObject(By.desc("Pause auto-scroll")),5000))
             device.pressKeyCode(android.view.KeyEvent.KEYCODE_SPACE); assertTrue(device.wait(Until.hasObject(By.desc("Start auto-scroll")),5000))
@@ -79,17 +79,17 @@ class ReleasePerformanceTest {
             device.pressHome(); Thread.sleep(400)
             inst.runOnMainSync { context.startActivity(Intent(context,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)) }
             assertTrue("Background pauses",device.wait(Until.hasObject(By.desc("Start auto-scroll")),5000))
-            click("Reader options",true); click("Return to top"); Thread.sleep(300); assertEquals(0,position().first)
-            click("Start auto-scroll",true); click("Chord D (I). Sounding D",true); click("Piano")
+            val returnBounds=device.wait(Until.findObject(By.desc("Song sheet")),5000)!!.visibleBounds
+            var returning=0
+            while (position().first>0 && returning++<15) { device.swipe(returnBounds.centerX(),returnBounds.top+100,returnBounds.centerX(),returnBounds.bottom-80,15); Thread.sleep(150) }
+            assertEquals(0,position().first)
+            click("Start auto-scroll",true); click("Chord D (I). Sounding D",true)
             assertTrue(device.wait(Until.hasObject(By.text("D4  F#4  A4")),5000)); click("Done")
             assertTrue("Chord sheet pauses",device.wait(Until.hasObject(By.desc("Start auto-scroll")),5000))
-            device.setOrientationLeft(); Thread.sleep(1800); check(device.wait(Until.hasObject(By.desc("Reader options")),10000)); Thread.sleep(600); shot("08-landscape-reader")
+            device.setOrientationLeft(); Thread.sleep(1800); check(device.wait(Until.hasObject(By.desc("Exit fullscreen")),10000)); Thread.sleep(600); shot("08-landscape-reader")
             device.setOrientationNatural(); Thread.sleep(1800)
-            device.executeShellCommand("settings put system font_scale 1.5"); Thread.sleep(2000); check(device.wait(Until.hasObject(By.desc("Reader options")),10000)); Thread.sleep(600); shot("09-large-text-reader")
+            device.executeShellCommand("settings put system font_scale 1.5"); Thread.sleep(2000); check(device.wait(Until.hasObject(By.desc("Exit fullscreen")),10000)); Thread.sleep(600); shot("09-large-text-reader")
             device.executeShellCommand("settings put system font_scale 1.0"); Thread.sleep(1800)
-            click("Reader options",true); click("Lyrics only"); click("Done"); shot("10-lyrics-only")
-            click("Reader options",true); click("Chords only"); click("Done"); shot("11-chords-only")
-            click("Reader options",true); click("Chords and lyrics"); click("Done")
             // Jump to the last section/end using manual accessibility scrolling, then start and stop at the bottom.
             val finalBounds=device.wait(Until.findObject(By.desc("Song sheet")),5000)!!.visibleBounds
             var attempts=0

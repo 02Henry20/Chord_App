@@ -131,7 +131,7 @@ class Phase4LibraryTest {
             rule.onNodeWithTag("library-options").performClick()
             rule.onNodeWithText("Artist / title").performClick()
             rule.onNodeWithText("Artist (exact name)").performScrollTo().performTextInput("River Trio")
-            rule.onNodeWithText("Original key (e.g. C, Am)").performScrollTo().performTextInput("C")
+            rule.onNodeWithText("Key (e.g. C, Am)").performScrollTo().performTextInput("C")
             rule.onNodeWithText("Apply").performClick(); rule.onNodeWithTag("song-${ids[0]}").assertExists(); screenshot("05b-filters")
             rule.onNodeWithTag("library-options").performClick(); rule.onNodeWithText("Clear filters").performScrollTo().performClick(); rule.onNodeWithText("Apply").performClick()
             search("not-a-song-unheard"); await("No matches yet"); screenshot("06-no-results")
@@ -161,8 +161,7 @@ class Phase4LibraryTest {
             search("Linkless study"); assertArtwork("Linkless study","Generated artwork"); rule.onNodeWithTag("song-${ids[2]}").performClick(); await("KEY C"); rule.onNodeWithContentDescription("Song links").performClick()
             rule.onNodeWithText("Search Spotify").performClick(); rule.onNodeWithText("Search YouTube").performClick(); assertTrue(captured.takeLast(2).all { it.dataString!!.contains("search") }); screenshot("14-search-links")
             rule.onNodeWithText("Done").performClick(); rule.onNodeWithContentDescription("Back").performClick()
-            rule.onNodeWithText("Setlists").performClick(); rule.onNodeWithText("Phase 4 session").performClick(); assertArtwork("Evening lanterns","Local artwork"); screenshot("15-setlist-artwork")
-            rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithText("Settings").performClick(); rule.onNodeWithTag("theme-DARK").performClick()
+            rule.onNodeWithText("Settings").performClick(); rule.onNodeWithTag("category-Appearance").performScrollTo().performClick(); rule.onNodeWithTag("theme-DARK").performClick()
             rule.waitUntil(5_000) { runBlocking { Settings(context).flow.first().theme == ThemeMode.DARK } }
             rule.onNodeWithText("Library").performClick(); search("Evening lanterns"); screenshot("16-library-dark")
             device.setOrientationLeft(); Thread.sleep(700); await("Your library"); screenshot("17-landscape-library")

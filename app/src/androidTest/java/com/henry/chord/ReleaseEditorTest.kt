@@ -24,7 +24,7 @@ class ReleaseEditorTest {
         if (!item.waitForExists(1500)) UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().text(name))
         check(item.waitForExists(5000)) { "Picker missing $name" }; return item
     }
-    @Test fun structuredEditRepeatedSetlistAndRealSafBackup() {
+    @Test fun structuredEditAndRealSafBackup() {
         val context=inst.targetContext; val db=Room.databaseBuilder(context,ChordDatabase::class.java,"chord.db").addMigrations(MIGRATION_1_2,MIGRATION_2_3,MIGRATION_3_4).build(); val dao=db.dao()
         val prefs=runBlocking { Settings(context).flow.first() }; val before=runBlocking { dao.count() }
         val backupName="Chordroom-release-backup-${System.currentTimeMillis()}.zip"; val name="Release editor original"; val setName="Release session ${System.currentTimeMillis()}"; var id=0L; var setId=0L
@@ -57,21 +57,10 @@ class ReleaseEditorTest {
             rule.activityRule.scenario.recreate(); await("Edit song"); rule.onNodeWithText("Song title").assertTextContains("Unsaved title")
             rule.onNodeWithContentDescription("Cancel editing").performScrollTo().performClick(); await("Discard unsaved changes?"); rule.onNodeWithText("Discard changes").performClick(); await("KEY G")
             assertEquals(name,runBlocking { dao.song(id)!!.title })
-            rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithText("Setlists").performClick(); rule.onNodeWithContentDescription("New setlist").performClick()
-            rule.onNodeWithText("Setlist name").performTextInput(setName); rule.onNodeWithText("Save").performClick(); await("Running order")
-            setId=runBlocking { dao.snapshotSets().single { it.name==setName }.id }
-            rule.onNodeWithText("Add songs").performClick(); rule.onNodeWithText("Find title or artist").performTextInput(name)
-            rule.onNode(hasText(name) and !hasSetTextAction()).performClick(); rule.onNode(hasText(name) and !hasSetTextAction()).performClick(); rule.onNodeWithText("Done").performClick()
-            rule.waitUntil(5000) { runBlocking { dao.snapshotEntries().count { it.setlistId==setId }==2 } }
-            val original=runBlocking { dao.snapshotEntries().filter { it.setlistId==setId } }
-            rule.onAllNodesWithText("Key / notes").onFirst().performClick(); rule.onNodeWithText("Semitone override (−24 to +24)").performTextInput("2"); rule.onNodeWithText("Entry notes").performTextInput("Encore high"); rule.onNodeWithText("Save").performClick()
-            rule.onAllNodesWithContentDescription("Drag $name to reorder").onFirst().performTouchInput { down(center); advanceEventTime(650); moveBy(Offset(0f,460f),700); up() }
-            rule.waitUntil(7000) { runBlocking { dao.snapshotEntries().filter { it.setlistId==setId }.first().entryId==original.last().entryId } }; shot("14-setlist-light")
-            rule.onNodeWithText("Play setlist").performClick(); await("KEY G"); rule.onNodeWithContentDescription("Next song").performClick(); await("KEY A")
-            assertEquals("Song preference unchanged by setlist override",0,runBlocking { dao.song(id)!!.transpose })
-            rule.onNodeWithContentDescription("Previous song").performClick(); await("KEY G"); rule.onNodeWithContentDescription("Exit fullscreen").performClick()
-            rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithText("Settings").performClick()
-            rule.onNodeWithTag("label-ROMAN").performScrollTo().performClick(); rule.onNodeWithTag("theme-DARK").performScrollTo().performClick(); shot("15-settings-dark")
+            rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithText("Settings").performClick()
+            rule.onNodeWithTag("category-Chord labels").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().performClick()
+            rule.onNodeWithTag("category-Appearance").performScrollTo().performClick(); rule.onNodeWithTag("theme-DARK").performScrollTo().performClick(); shot("15-settings-dark")
+            rule.onNodeWithTag("category-Backup & restore").performScrollTo().performClick()
             rule.onNodeWithText("Export full backup ZIP").performScrollTo().performClick()
             val roots=device.findObject(UiSelector().description("Show roots")); check(roots.waitForExists(10000)); roots.click(); native("sdk_gphone_x86").click(); native("Documents").click()
             val filename=device.findObject(UiSelector().resourceId("android:id/title").className("android.widget.EditText"))
@@ -89,9 +78,10 @@ class ReleaseEditorTest {
             rule.onNodeWithText("Merge into this library").performClick(); rule.onNodeWithText("Restore backup").performClick()
             rule.waitUntil(45000) { rule.onAllNodesWithText("Restored ",substring=true).fetchSemanticsNodes().isNotEmpty() }
             assertEquals(LabelMode.ROMAN,runBlocking { Settings(context).flow.first().chordLabels }); assertEquals(before+1,runBlocking { dao.count() }); assertTrue(runBlocking { dao.song(id)!!.favorite })
-            rule.activityRule.scenario.recreate(); await("Make it yours."); rule.onNodeWithTag("label-ROMAN").performScrollTo().assertExists(); shot("18-settings-restored-dark")
-            rule.onNodeWithText("Setlists").performClick(); rule.onNodeWithText(setName).performClick(); shot("19-setlist-dark")
-            rule.onNodeWithText("Play setlist").performClick(); rule.onNodeWithContentDescription("Exit fullscreen").performClick(); rule.onNodeWithContentDescription("Edit song").performClick(); shot("20-editor-dark")
+            rule.activityRule.scenario.recreate(); await("Make it yours."); rule.onNodeWithTag("category-Chord labels").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().assertExists(); shot("18-settings-restored-dark")
+            rule.onNodeWithText("Library").performClick(); rule.onNodeWithTag("library-search").performTextReplacement(name)
+            rule.waitUntil(10000) { rule.onAllNodesWithTag("song-$id").fetchSemanticsNodes().isNotEmpty() }
+            rule.onNodeWithTag("song-$id").performClick(); rule.onNodeWithContentDescription("Edit song").performClick(); shot("20-editor-dark")
         } catch (e: Throwable) { shot("editor-failure"); throw e }
         finally {
             runBlocking { dao.snapshotSets().filter { it.name==setName }.forEach { dao.deleteSetlist(it) }; if (id!=0L) dao.song(id)?.let { dao.delete(it) }; Settings(context).save(prefs); assertEquals(before,dao.count()) }; db.close(); rule.activityRule.scenario.recreate()

@@ -1,0 +1,5 @@
+Captured QA logcat (raw log private to protect library content).
+FATAL EXCEPTION markers: 0
+ANR in com.henry.chord markers: 0
+Crash-buffer bytes: 0
+Scope: post-boot functional QA through final native test runs; not a lifetime reliability claim.

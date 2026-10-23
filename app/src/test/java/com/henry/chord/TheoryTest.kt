@@ -61,28 +61,17 @@ class TheoryTest {
         val chord = ChordParser.parse("C")!!
         val suggestions = PianoVoicings.forChord(chord)
         assertEquals(listOf("C4", "E4", "G4"), suggestions[0].notes.map { it.label })
-        assertEquals(listOf("E4", "G4", "C5"), suggestions[1].notes.map { it.label })
-        assertEquals(listOf("G4", "C5", "E5"), suggestions[2].notes.map { it.label })
+        assertEquals(1, suggestions.size)
         val slash = PianoVoicings.forChord(ChordParser.parse("C/E")!!).single().notes
         assertEquals("E3", slash.first().label); assertEquals(52, slash.first().midi)
         assertEquals("Cb4", VoicedNote(Note.parse("Cb")!!, 59).label)
         assertEquals("B#3", VoicedNote(Note.parse("B#")!!, 60).label)
-        for (raw in listOf("Cadd9", "C9", "C13", "C6add9", "F#m7b5")) {
-            val close = PianoVoicings.forChord(ChordParser.parse(raw)!!).first().notes
-            assertTrue("$raw close-position span", close.last().midi - close.first().midi < 12)
-        }
-        assertEquals(setOf(0, 2, 4, 9), PianoVoicings.forChord(ChordParser.parse("C6add9")!!).first().notes.map { it.midi % 12 }.toSet())
-        assertEquals("E4", PianoVoicings.forChord(ChordParser.parse("Cadd9")!!)[1].notes.first().label)
-        assertEquals("G4", PianoVoicings.forChord(ChordParser.parse("Cadd9")!!)[2].notes.first().label)
-        assertEquals(1, PianoVoicings.forChord(ChordParser.parse("Csus2")!!).size)
-        for (raw in listOf("C", "G", "Am", "F#", "Bbm", "C7", "Cm7", "Dmaj7", "C/E", "D/F#")) {
+        for (raw in listOf("Cadd9", "C9", "C13", "C6add9", "F#m7b5", "Csus2")) {
             val parsed = ChordParser.parse(raw)!!
-            val shapes = GuitarVoicings.forChord(parsed)
-            assertTrue("No shape for $raw", shapes.isNotEmpty())
-            shapes.forEach { assertTrue("$raw $it", GuitarVoicings.valid(parsed, it)) }
+            val root = PianoVoicings.forChord(parsed).single().notes
+            assertEquals(parsed.root!!.pitch, root.first().midi % 12)
+            assertEquals(parsed.pitches, root.map { it.midi % 12 }.toSet())
         }
-        assertTrue(GuitarVoicings.forChord(chord).size >= 2)
-        assertTrue(GuitarVoicings.forChord(ChordParser.parse("C13")!!).isEmpty())
     }
     @Test fun legacyPreferencesMigrateWithoutLosingChoice() {
         assertEquals(LabelMode.SYMBOLS, Settings.labelPreference(null, false))

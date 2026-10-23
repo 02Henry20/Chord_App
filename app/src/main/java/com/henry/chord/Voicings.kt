@@ -6,44 +6,21 @@ data class VoicedNote(val note: Note, val midi: Int) {
 }
 data class PianoVoicing(val title: String, val notes: List<VoicedNote>)
 object PianoVoicings {
-    fun forChord(chord: ParsedChord): List<PianoVoicing> {
-        val root = chord.root ?: return emptyList()
-        fun sorted(notes: List<Note>) = notes.distinctBy { it.pitch }.sortedBy { Math.floorMod(it.pitch - root.pitch, 12) }
-        val tones = sorted(chord.notes)
-        if (tones.isEmpty()) return emptyList()
-        fun close(order: List<Note>, bass: Note? = null): List<VoicedNote> {
-            var previous = 59
-            val result = order.map { note ->
-                var midi = 60 + note.pitch
-                while (midi <= previous) midi += 12
-                previous = midi
-                VoicedNote(note, midi)
-            }.toMutableList()
-            if (bass != null) {
-                var midi = 48 + bass.pitch
-                while (midi >= result.first().midi) midi -= 12
-                result.add(0, VoicedNote(bass, midi))
-            }
-            return result
+    /** One complete root-position chord; extensions retain their written octave above the root. */
+    fun rootPosition(chord: ParsedChord): PianoVoicing? {
+        val root=chord.root ?: return null
+        val notes=chord.tones.zip(chord.notes).sortedBy { it.first.semitones }
+            .map { (tone,note) -> VoicedNote(note,60+root.pitch+tone.semitones) }.toMutableList()
+        if (notes.isEmpty()) return null
+        chord.bass?.let { bass ->
+            var midi=48+bass.pitch
+            while (midi>=notes.first().midi) midi-=12
+            notes.add(0,VoicedNote(bass,midi))
         }
-        // Extended chords use a practical shell, omitting fifth/11th before essential guide tones.
-        if (tones.size > 4) {
-            val shell = sorted(chord.tones.zip(chord.notes).filter { it.first.degree in listOf(1, 3, 6, 7, chord.tones.maxOf { t -> t.degree }) }.map { it.second })
-            return listOf(PianoVoicing("Close position · shell", close(shell, chord.bass)), PianoVoicing("All chord tones", close(tones, chord.bass)))
-        }
-        if (chord.bass != null) return listOf(PianoVoicing("Slash bass · ${chord.bass.name}", close(tones, chord.bass)))
-        return buildList {
-            add(PianoVoicing("Root position · close", close(tones)))
-            // Inversions refer to the third/fifth, not the next pitch (which may be an added 9th).
-            if (chord.quality !in listOf(ChordQuality.SUS2, ChordQuality.SUS4)) {
-                listOf(3 to "1st inversion", 5 to "2nd inversion").forEach { (degree, title) ->
-                    val note = chord.tones.zip(chord.notes).find { it.first.degree == degree }?.second
-                    val index = tones.indexOfFirst { it.pitch == note?.pitch }
-                    if (index > 0) add(PianoVoicing(title, close(tones.drop(index) + tones.take(index))))
-                }
-            }
-        }
+        return PianoVoicing("Root position",notes)
     }
+    fun forChord(chord: ParsedChord): List<PianoVoicing> = listOfNotNull(rootPosition(chord))
+
 }
 
 data class GuitarVoicing(val frets: List<Int>) {

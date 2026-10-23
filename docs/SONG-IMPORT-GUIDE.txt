@@ -1,0 +1,285 @@
+CHORDROOM SONG IMPORT FORMAT — VERSION 1
+======================================
+Applies to Chordroom 1.0.0-rc2 and later.
+All import parsing, checking, artwork copying and playback/reading work offline.
+
+1. WHAT YOU CAN SELECT
+----------------------
+Import > Choose files or ZIP: select one or many .json, .cho, .chopro,
+.chordpro, .pro or .txt documents, or a .zip archive. Select accompanying
+images too if you are importing loose JSON documents that reference images.
+Import > Choose a folder: select the containing folder in Android's picker;
+its subfolders are scanned recursively. A ZIP can contain the same layout.
+
+Use UTF-8 text. UTF-8 with a byte-order mark is accepted. Windows CRLF and
+Unix LF files are accepted; text/spacing/Unicode are otherwise preserved.
+Do not rename a Word/PDF document to .txt or .json.
+
+The import screen validates BEFORE saving. Invalid files have no importable
+candidate. Open "Review N file errors" to see the source filename and issue.
+JSON syntax errors include line/column; field errors include a path such as
+$.arrangements[0].sections[0].lines[1].segments[0].text. Array indexes start
+at zero. ChordPro errors include the line and, for chords, column.
+Correct the source file and choose it again. Valid files in a mixed batch
+remain available for import. Existing songs are not deleted by a parse error.
+
+2. RECOMMENDED NATIVE JSON — COPYABLE COMPLETE EXAMPLE
+----------------------------------------------------
+Save exactly the JSON between the next blank line and the end of its object
+as evening-lights.json. Do not include Markdown fences or this guide's text.
+This example needs no external artwork file.
+
+{
+  "schemaVersion": 1,
+  "songId": "6c099529-b804-4a90-87e0-083fa6ab90b1",
+  "title": "Evening Lights",
+  "artist": "Demo Artist",
+  "album": "Original Songs",
+  "year": 2026,
+  "language": "en",
+  "genre": "pop",
+  "tags": ["piano", "singalong"],
+  "musicLinks": {
+    "spotifyTrackUrl": null,
+    "youtubeVideoUrl": null
+  },
+  "arrangements": [
+    {
+      "arrangementId": "e03e089a-5c95-46fb-a7c5-c46021a28cb3",
+      "name": "Main",
+      "originalKey": "G",
+      "tonalMode": "major",
+      "tempoBpm": 96,
+      "timeSignature": "4/4",
+      "sourceFormat": "json",
+      "licenseNotes": "Original demonstration content",
+      "sections": [
+        {
+          "id": "verse-1",
+          "type": "verse",
+          "label": "Verse 1",
+          "lines": [
+            {
+              "id": "verse-1-line-1",
+              "segments": [
+                {"id": "v1-s1", "text": "Under the "},
+                {"id": "v1-s2", "anchor": {"id": "v1-a1", "rawChord": "G"}, "text": "evening lights, "},
+                {"id": "v1-s3", "anchor": {"id": "v1-a2", "rawChord": "D/F#"}, "text": "we sing"}
+              ]
+            },
+            {"id": "verse-1-blank", "segments": []}
+          ]
+        },
+        {
+          "id": "chorus-1",
+          "type": "chorus",
+          "label": "Chorus",
+          "lines": [
+            {
+              "id": "chorus-1-line-1",
+              "segments": [
+                {"id": "c1-s1", "anchor": {"id": "c1-a1", "rawChord": "G"}, "text": "Stay here "},
+                {"id": "c1-s2", "anchor": {"id": "c1-a2", "rawChord": "C"}, "text": "with me"}
+              ]
+            }
+          ]
+        },
+        {
+          "id": "solo-1",
+          "type": "solo",
+          "label": "Piano solo",
+          "lines": [
+            {
+              "id": "solo-1-line-1",
+              "segments": [
+                {"id": "solo-s1", "anchor": {"id": "solo-a1", "rawChord": "G"}, "text": ""},
+                {"id": "solo-s2", "anchor": {"id": "solo-a2", "rawChord": "Em7"}, "text": ""},
+                {"id": "solo-s3", "anchor": {"id": "solo-a3", "rawChord": "C"}, "text": ""},
+                {"id": "solo-s4", "anchor": {"id": "solo-a4", "rawChord": "D7"}, "text": ""}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+3. REQUIRED STRUCTURE, TYPES AND OPTIONAL FIELDS
+------------------------------------------------
+JSON must use double-quoted field names/text, commas BETWEEN members, and no
+trailing commas, comments, single quotes, duplicate fields, NaN or Infinity.
+Unknown/misspelled fields are rejected instead of silently discarded.
+Do not quote numbers: use "tempoBpm": 96, not "tempoBpm": "96".
+JSON nesting is capped at 64 levels.
+
+Required song fields:
+  schemaVersion: number 1 (other versions cannot be newly imported).
+  songId: a nonblank persistent ID, preferably a UUID. Do not change it when
+          editing/re-importing the same song. Named external IDs are converted
+          deterministically to UUIDs. The legacy alias "id" is also accepted.
+  title, artist: nonblank text. Use "Unknown artist" if necessary.
+  arrangements: array of 1–100 arrangement objects, each with sections.
+
+Optional song fields:
+  album, language, genre: text or null.
+  year: a whole four-digit number, or null.
+  tags: array of nonblank strings, e.g. ["été", "日本", "friends"].
+  artwork: object containing path, sourceUrl, credit (text or null).
+  musicLinks: spotifyTrackUrl / youtubeVideoUrl, each a valid user-provided
+              track/video URL or null. Empty strings are not valid URLs.
+
+Arrangement fields:
+  arrangementId: persistent ID, preferably a UUID. Omitted IDs are derived
+                 from song/position. Explicit IDs are safer for reordering.
+  name: text, default Main. Different versions can have different keys/sheets.
+  originalKey: e.g. C, G, Bb, F#, Am, F#m; null/omitted for unknown.
+  tonalMode: "major", "minor" or null. An m-suffixed key cannot use major.
+             If omitted, mode is inferred from the key suffix. Explicit null
+             means unknown and prevents fabricated Roman degrees.
+  tempoBpm: finite number 10–500, or null.
+  timeSignature: text with numerator 1–32 and denominator 1/2/4/8/16/32,
+                 e.g. "4/4", "6/8"; or null.
+  sourceId, sourceFormat, provenance, licenseNotes, comments: text or null.
+  sections: nonempty ordered array. At least one lyric, annotation or chord
+            must exist in the arrangement.
+
+Section fields:
+  id: stable nonblank text, recommended explicit.
+  type: intro, verse, prechorus, chorus, postchorus, bridge, instrumental,
+        solo, outro or custom. Use "prechorus", not "pre-chorus" in JSON.
+  label: displayed heading, e.g. "Verse 2" or "Piano solo".
+  lines: nonempty ordered array of line objects.
+
+Line fields:
+  id: stable nonblank text.
+  segments: required ordered array; [] is an intentional blank line.
+  annotation: optional text note, rendered as an annotation instead of lyrics.
+              Prefer a separate line for an annotation.
+
+Segment fields:
+  id: stable nonblank text.
+  text: REQUIRED exact lyric text, including spaces; "" for chord-only rows.
+  anchor: optional object with id and rawChord, and optional beat (nonnegative
+          number), measure (nonnegative whole number), annotations (text).
+
+The chord applies IMMEDIATELY BEFORE its segment's text. To place C over the
+"d" in "Under", use {"text":"Un"} then {"chord":"C","text":"der"}.
+No inserted spaces, tabs or monospace alignment are needed. Whitespace,
+punctuation, accents, emoji and non-English lyrics are retained exactly.
+Put actual line breaks in separate line objects, not \n inside segment text.
+Do not split a combining character/emoji sequence between segments.
+
+Every explicit section/line/segment/anchor ID must be nonblank and unique
+within its arrangement. Arrangement IDs must be unique within the song.
+Missing subordinate IDs are derived; the full explicit form above is safest.
+
+Concise compatibility form:
+  You may put originalKey, tonalMode and sections directly on a song instead
+  of an arrangements array; this creates one Main arrangement. Do not mix
+  those layouts. A segment may use "chord": "G" instead of an anchor object.
+  Do not use both chord and anchor on the same segment.
+  "links": {"spotify": null, "youtube": null} is accepted as an alternative
+  to musicLinks. Do not use both containers.
+
+Supported chord examples (uppercase note roots):
+  C Cm C7 Cmaj7 Cm7 Cdim Cdim7 Caug Csus2 Csus4 Cadd9 C9 C13
+  C/E D/F# F#m7b5 Bbmaj7 G7sus4 N.C. NC
+  Unicode sharp/flat signs are accepted. Unsupported/malformed chord tokens
+  fail new imports with the exact field/line to fix. This does not rewrite or
+  remove unsupported chord text already stored in an older library.
+
+4. ARTWORK AND FOLDERS
+----------------------
+Example layout:
+  MySongs/
+    songs/Evening Lights/song.json
+    songs/Evening Lights/assets/cover.png
+
+Add to the song object:
+  "artwork": {"path": "assets/cover.png", "credit": "Your credit"}
+
+Artwork is resolved relative to the song JSON first, then the selected
+collection/ZIP root. Flat collections with song.json + assets/cover.png also
+work. Choose the containing folder or a ZIP so the image is included.
+With loose files, select the accompanying image as well; folder/ZIP import
+is recommended for nested relative asset paths.
+
+Use JPG/JPEG, PNG or WebP with a matching real image format. Maximum 12 MB,
+32 megapixels, each dimension at most 8192 pixels. Missing/invalid declared
+local artwork blocks that song: include/fix the image or omit artwork.path.
+An absent artwork field uses a deterministic local placeholder. sourceUrl
+is attribution/source metadata only; it is never fetched automatically.
+
+Only relative safe paths are allowed. No C:\..., /absolute, content://,
+backslashes, ../, empty path components, unsafe/reserved filenames, or ZIP
+traversal. The importer copies accepted originals/thumbnails to private app
+storage. The source can be disconnected afterwards.
+
+5. CHORDPRO AND TXT
+-------------------
+Save this example as evening-lights.cho (or .pro/.chopro/.chordpro):
+
+{title: Evening Lights}
+{artist: Demo Artist}
+{key: G}
+{tempo: 96}
+{time: 4/4}
+{start_of_verse: Verse 1}
+Under the [G]evening lights, [D/F#]we sing
+{end_of_verse}
+
+{start_of_chorus: Chorus}
+[G]Stay here [C]with me
+{end_of_chorus}
+
+{start_of_solo: Piano solo}
+[G] [Em7] [C] [D7]
+{end_of_solo}
+
+Chords in [brackets] apply before the following character, including the
+middle of a word: Un[C]der. A row can contain only chord markers and spaces.
+Blank rows remain blank. A directive must occupy its own line with balanced
+{braces}. Every [ has a matching ]; chord tokens cannot be empty/unsupported.
+Use native JSON when lyric text itself needs literal braces/brackets.
+
+Supported metadata directives: title/t, artist/subtitle/st, key, album, year,
+language, genre, tempo, time, source, source_id, license, copyright.
+Comments use {comment: ...} or {c: ...}. Values must not be empty.
+Sections use {start_of_TYPE: Label} and optionally {end_of_TYPE}, with the
+types listed above. Starting another section implicitly closes the previous
+one. An explicit end must match the current section. End of file also closes
+the current section. Aliases: soc/eoc, sov/eov, sob/eob, soi/eoi. ChordPro
+pre_chorus/post_chorus aliases are also accepted.
+
+Unknown directives, broken markers, invalid keys/tempo/meter/year or chord
+tokens are rejected with a line number. Put extra prose in {comment: ...}.
+When metadata is omitted, the filename supplies the title and the artist is
+"Imported". Omit {key} if unknown; no Roman analysis will be invented.
+
+.txt can contain valid ChordPro or plain lyric lines. Common separate chord
+rows above lyrics may be proposed for conversion, but their positions need
+explicit preview approval before import. Tabs/Unicode/overrun alignment is
+never silently guessed. Prefer JSON/embedded brackets for exact placement.
+
+6. MULTIPLE SONGS, VERSIONS, LIMITS AND BACKUPS
+--------------------------------------------
+Prefer one JSON per song. An optional multi-song JSON manifest is:
+  {"format":"chordroom-collection","schemaVersion":1,"songs":[ ... ]}
+Each songs element is a complete song as described above. A child may omit
+schemaVersion and inherit 1. Do not put file paths/strings in the songs array.
+One invalid child rejects that manifest file; split files for independent
+per-song error handling. One song's arrangements array stores its versions.
+
+Limits: 2000 arrangements, 10000 discovered entries and 256 MB expanded per
+import batch; 4 MB per song document; at most 16 recursive folder levels.
+ZIP traversal, case-colliding/duplicate paths, excessive expansion or unsafe
+filenames are blocked. Divide larger collections into smaller packs.
+
+Repeated imports detect UUID/source/content/title+artist+arrangement matches
+and default duplicates to Skip. Review before Replace or Import as new version.
+Favorites, notes and preferred transpose are personal app data, not canonical
+song fields. Do not put them in song JSON. Settings > Backup & restore >
+Export full backup ZIP preserves that personal data and all managed artwork.
+Restore full backup uses its own versioned format/preview and conflict choices.
+Ordinary song imports cannot import backup.json as a song document.
