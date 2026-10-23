@@ -1,0 +1,1 @@
+    mResumedActivity: ActivityRecord{7903da1 u0 com.henry.chord/.MainActivity t241}

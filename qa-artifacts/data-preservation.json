@@ -1,0 +1,18 @@
+{
+  "before_arrangements": 331,
+  "after_arrangements": 331,
+  "catalog_exact": true,
+  "canonical_documents_fingerprints_ids_exact": true,
+  "favorites_notes_exact": true,
+  "arrangement_offsets_exact": true,
+  "setlist_names_ids_exact": true,
+  "setlist_references_order_exact": true,
+  "managed_artwork_exact": true,
+  "schema_version": 4,
+  "integrity_check": "ok",
+  "foreign_key_violations": 0,
+  "index_rows": 331,
+  "fts_rows": 331,
+  "recent_timestamps_exact": true,
+  "preferences_restored_exact": true
+}

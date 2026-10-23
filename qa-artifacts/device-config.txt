@@ -1,0 +1,20 @@
+AVD=Pixel_4_API_30
+SDK build path=A:\AI\runtimes\android-sdk
+JDK=A:\AI\runtimes\jdk\microsoft-17.0.20
+Test viewport temporarily 1080x2424 / 420 dpi
+List of devices attached
+emulator-5554          device product:sdk_gphone_x86 model:sdk_gphone_x86 device:generic_x86_arm transport_id:1
+
+30
+sdk_gphone_x86
+1
+Physical size: 1080x2280
+Override size: 1080x2424
+Physical density: 440
+Override density: 420
+
+    versionCode=7 minSdk=26 targetSdk=36
+    versionName=1.0.0-rc1
+
+Physical size: 1080x2280
+Physical density: 440

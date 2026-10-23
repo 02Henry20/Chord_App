@@ -1,0 +1,10 @@
+Post-startup-fix logcat check
+Scope: crash buffer cleared after preserving the discovered startup crash privately; subsequent startup and final regression runs plus manual cold launch captured.
+Marker=1
+FATAL EXCEPTION lines=0
+App ANR lines=0
+Earlier issue: navigation before NavHost graph attachment caused one actual cold-start crash; fixed by readiness/destination guards.
+Post-fix verification: ten immediate navigation attempts (repeated in final four-test regression suite), native reader regressions, and manual cold launch/Library navigation passed.
+Manual cold start: 2280 ms am start -W; final foreground com.henry.chord/.MainActivity; 331 songs visible.
+Raw full logcat and pre-fix crash details remain private to avoid publishing library text.
+Crash buffer output lines=0

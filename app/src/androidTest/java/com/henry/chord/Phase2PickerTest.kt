@@ -46,9 +46,9 @@ class Phase2PickerTest {
         if (rule.onAllNodesWithText("Discard staged import").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithText("Discard staged import").performClick()
         await("Choose files or ZIP")
     }
-    private fun count(): Int = runBlocking { Room.databaseBuilder(instrumentation.targetContext, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2).build().let { db -> try { db.dao().count() } finally { db.close() } } }
+    private fun count(): Int = runBlocking { Room.databaseBuilder(instrumentation.targetContext, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().let { db -> try { db.dao().count() } finally { db.close() } } }
     private fun removeOnlyFixturesCreatedByThisTest(): Unit = runBlocking {
-        val db = Room.databaseBuilder(instrumentation.targetContext, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2).build()
+        val db = Room.databaseBuilder(instrumentation.targetContext, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
         try {
             val dao = db.dao()
             for (record in dao.arrangements()) {

@@ -14,3 +14,9 @@ phase2-*.log
 phase3-*.log
 docs/evidence/*.tar
 docs/screenshots.tar
+
+phase4-*.log
+phase5-*.log
+phase6-*.log
+release-*.log
+__pycache__/

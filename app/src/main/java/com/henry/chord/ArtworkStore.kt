@@ -5,9 +5,24 @@ import android.graphics.*
 import java.io.File
 import java.security.MessageDigest
 
+/** Keep managed-file creation, Room references and garbage collection in one process-wide operation. */
+object LibraryFiles { val mutex = kotlinx.coroutines.sync.Mutex() }
+
 data class ManagedArtwork(val path: String?, val thumbnail: String)
 
 class ArtworkStore(private val context: Context) {
+    fun stage(uri: android.net.Uri): File {
+        val folder = File(context.cacheDir, "artwork-edits").apply { mkdirs() }
+        folder.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000 }?.forEach { it.delete() }
+        val temp = File.createTempFile("cover-", ".image", folder)
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input -> temp.outputStream().use { out ->
+                val buffer = ByteArray(8192); var total = 0L
+                while (true) { val size = input.read(buffer); if (size < 0) break; total += size; require(total <= MAX_IMAGE_BYTES) { "Artwork exceeds 12 MB." }; out.write(buffer, 0, size) }
+            } } ?: error("Cannot read this image.")
+            validate(temp); return temp
+        } catch (e: Exception) { temp.delete(); throw e }
+    }
     companion object {
         const val MAX_IMAGE_BYTES = 12L * 1024 * 1024
         fun safePath(value: String): String {

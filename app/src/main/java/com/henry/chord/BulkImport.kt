@@ -1,4 +1,5 @@
 package com.henry.chord
+import kotlinx.coroutines.sync.withLock
 
 import android.content.Context
 import android.net.Uri
@@ -169,7 +170,7 @@ class BulkImportManager(private val context: Context, private val dao: ChordDao)
         if (editorText != null) { val previous = Canonical.decode(File(c.draft).readText()).single().document; File(c.draft).writeText(Canonical.encode(SheetParser.parse(editorText, "review.cho", previous).document)) }
         session.copy(candidates = session.candidates.map { if (it.id == id) it.copy(reviewed = true, choice = if (it.needsReview && it.duplicateReason == null) ImportChoice.IMPORT else it.choice) else it }).also { save(it) }
     }
-    suspend fun commit(start: ImportSession, progress: (ImportProgress) -> Unit = {}): ImportSession = withContext(Dispatchers.IO) {
+    suspend fun commit(start: ImportSession, progress: (ImportProgress) -> Unit = {}): ImportSession = LibraryFiles.mutex.withLock { withContext(Dispatchers.IO) {
         var session = start.copy(finished = false); val issues = start.issues.toMutableList()
         try {
             for ((index, c) in start.candidates.withIndex()) {
@@ -206,7 +207,7 @@ class BulkImportManager(private val context: Context, private val dao: ChordDao)
             session = session.copy(finished = true, issues = issues.toList()); save(session); artwork.cleanUnreferenced(dao.artworkUsage())
             progress(ImportProgress("Finished", start.candidates.size, start.candidates.size)); session
         } catch (e: CancellationException) { withContext(NonCancellable) { save(session.copy(issues = issues.toList())) }; throw e }
-    }
+    } }
     fun save(session: ImportSession) {
         val json = JSONObject().put("id", session.id).put("directory", session.directory).put("files", session.files).put("covers", session.covers).put("finished", session.finished).put("successes", session.successes).put("skips", session.skips)
             .put("issues", JSONArray(session.issues.map { JSONObject().put("path", it.path).put("message", it.message) }))

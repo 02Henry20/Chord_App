@@ -1,0 +1,46 @@
+{'text': 'Your library', 'content-desc': '', 'resource-id': '', 'bounds': '[55,55][547,154]'}
+{'text': '331 songs · All offline', 'content-desc': '', 'resource-id': '', 'bounds': '[55,154][407,220]'}
+{'text': '', 'content-desc': 'New song', 'resource-id': '', 'bounds': '[926,105][992,171]'}
+{'text': 'Find a song, artist or lyric', 'content-desc': '', 'resource-id': '', 'bounds': '[198,303][658,369]'}
+{'text': 'All songs', 'content-desc': '', 'resource-id': '', 'bounds': '[99,474][239,529]'}
+{'text': 'Favorites', 'content-desc': '', 'resource-id': '', 'bounds': '[344,474][484,529]'}
+{'text': 'Recent', 'content-desc': '', 'resource-id': '', 'bounds': '[589,474][695,529]'}
+{'text': '', 'content-desc': 'Sort and filter library', 'resource-id': '', 'bounds': '[789,468][855,534]'}
+{'text': '331 songs', 'content-desc': '', 'resource-id': '', 'bounds': '[55,589][208,655]'}
+{'text': '', 'content-desc': 'Artwork for A little closer', 'resource-id': '', 'bounds': '[55,705][198,848]'}
+{'text': 'A little closer', 'content-desc': '', 'resource-id': '', 'bounds': '[231,702][497,760]'}
+{'text': 'Chord Originals', 'content-desc': '', 'resource-id': '', 'bounds': '[231,760][479,807]'}
+{'text': 'C', 'content-desc': '', 'resource-id': '', 'bounds': '[231,807][254,851]'}
+{'text': '', 'content-desc': 'Favorite A little closer', 'resource-id': '', 'bounds': '[930,748][988,806]'}
+{'text': '', 'content-desc': 'Artwork for Blue hour', 'resource-id': '', 'bounds': '[55,907][198,1050]'}
+{'text': 'Blue hour', 'content-desc': '', 'resource-id': '', 'bounds': '[231,904][421,962]'}
+{'text': 'Chord Originals', 'content-desc': '', 'resource-id': '', 'bounds': '[231,962][479,1009]'}
+{'text': 'G', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1009][254,1053]'}
+{'text': '', 'content-desc': 'Favorite Blue hour', 'resource-id': '', 'bounds': '[930,950][988,1008]'}
+{'text': '', 'content-desc': 'Artwork for Files original 002', 'resource-id': '', 'bounds': '[55,1109][198,1252]'}
+{'text': 'Files original 002', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1106][575,1164]'}
+{'text': 'Chordroom Originals · Acoustic', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1164][731,1211]'}
+{'text': 'G   ·   demo', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1211][395,1255]'}
+{'text': '', 'content-desc': 'Favorite Files original 002', 'resource-id': '', 'bounds': '[930,1152][988,1210]'}
+{'text': '', 'content-desc': 'Artwork for Folder bridge original', 'resource-id': '', 'bounds': '[55,1311][198,1454]'}
+{'text': 'Folder bridge original', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1308][654,1366]'}
+{'text': 'Chordroom Originals', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1366][562,1413]'}
+{'text': 'F#m', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1413][298,1457]'}
+{'text': '', 'content-desc': 'Favorite Folder bridge original', 'resource-id': '', 'bounds': '[930,1354][988,1412]'}
+{'text': '', 'content-desc': 'Artwork for Folder original 001', 'resource-id': '', 'bounds': '[55,1513][198,1656]'}
+{'text': 'Folder original 001', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1510][605,1568]'}
+{'text': 'Chordroom Originals · Acoustic', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1568][731,1615]'}
+{'text': 'G   ·   demo', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1615][395,1659]'}
+{'text': '', 'content-desc': 'Favorite Folder original 001', 'resource-id': '', 'bounds': '[930,1556][988,1614]'}
+{'text': '', 'content-desc': 'Artwork for Pack original 000', 'resource-id': '', 'bounds': '[55,1715][198,1858]'}
+{'text': 'Pack original 000', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1712][578,1770]'}
+{'text': 'Chordroom Originals · Acoustic', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1770][731,1817]'}
+{'text': 'G   ·   demo', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1817][395,1861]'}
+{'text': '', 'content-desc': 'Favorite Pack original 000', 'resource-id': '', 'bounds': '[930,1758][988,1816]'}
+{'text': '', 'content-desc': 'Artwork for Pack original 001', 'resource-id': '', 'bounds': '[55,1917][198,1928]'}
+{'text': 'Pack original 001', 'content-desc': '', 'resource-id': '', 'bounds': '[231,1914][578,1928]'}
+{'text': 'Home', 'content-desc': '', 'resource-id': '', 'bounds': '[56,2060][143,2104]'}
+{'text': 'Library', 'content-desc': '', 'resource-id': '', 'bounds': '[268,2060][373,2104]'}
+{'text': 'Setlists', 'content-desc': '', 'resource-id': '', 'bounds': '[484,2060][598,2104]'}
+{'text': 'Import', 'content-desc': '', 'resource-id': '', 'bounds': '[711,2060][810,2104]'}
+{'text': 'Settings', 'content-desc': '', 'resource-id': '', 'bounds': '[919,2060][1043,2104]'}

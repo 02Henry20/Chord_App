@@ -36,7 +36,7 @@ class Phase3InteractionTest {
 
     @Test fun realReaderModesVoicingsKeyEditAndPersistence() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val database = Room.databaseBuilder(context, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2).build()
+        val database = Room.databaseBuilder(context, ChordDatabase::class.java, "chord.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
         val dao = database.dao()
         val prefs = runBlocking { Settings(context).flow.first() }
         val count = runBlocking { dao.count() }

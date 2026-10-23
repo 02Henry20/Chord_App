@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "songId": "27bea6f2-5a24-5c42-be98-3dfcd49d245f",
+  "title": "Release folder original",
+  "artist": "Release original fixtures",
+  "originalKey": "C",
+  "tonalMode": "major",
+  "sections": [
+    {
+      "id": "73276d45-0ca0-5f62-a365-aaee32956d27",
+      "type": "verse",
+      "label": "Verse",
+      "lines": [
+        {
+          "id": "2e5df820-e234-5e4f-8c90-b5c6d2d3181b",
+          "segments": [
+            {
+              "id": "6ff110fb-27f6-5830-9d9d-cc6a0d9a4cdc",
+              "text": "Un"
+            },
+            {
+              "id": "d2f2113c-91b4-5bca-941f-2e4d4140dd8e",
+              "chord": "C",
+              "text": "der écho "
+            },
+            {
+              "id": "160fc97a-88fd-5b9e-88dc-b7abfcefceed",
+              "chord": "G",
+              "text": "日本"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "artwork": {
+    "path": "assets/cover.png",
+    "credit": "Original generated QA gradient"
+  }
+}

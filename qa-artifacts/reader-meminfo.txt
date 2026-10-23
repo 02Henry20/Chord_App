@@ -1,0 +1,61 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 23650406 Realtime: 23650406
+
+** MEMINFO in pid 31752 [com.henry.chord] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    34756    34704       28       19    35580    58272    24970    24068
+  Dalvik Heap    11148    11080        4       77    11936    15123     7562     7561
+ Dalvik Other     8907     4128        0        0    14036
+        Stack     1076     1076        0        0     1076
+       Ashmem        2        0        0        0        8
+    Other dev       24        0       24        0      228
+     .so mmap     3875      216      332        3    39732
+    .jar mmap     2417        0      188        0    28112
+    .apk mmap      794        0      328        0    13076
+    .ttf mmap      706        0      444        0     1436
+    .dex mmap   128353   128312        0        0   128500
+    .oat mmap       79        0        0        0     2228
+    .art mmap     5603     5340        8       44    12808
+   Other mmap     1827       36     1708        0     3164
+      Unknown      339      332        0        0      576
+        TOTAL   200049   185224     3064      143   200049    73395    32532    31629
+
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    16428                          24744
+         Native Heap:    34704                          35580
+                Code:   129852                         222704
+               Stack:     1076                           1076
+            Graphics:        0                              0
+       Private Other:     6228
+              System:    11761
+             Unknown:                                    8392
+
+           TOTAL PSS:   200049            TOTAL RSS:   292496       TOTAL SWAP PSS:      143
+
+ Objects
+               Views:       11         ViewRootImpl:        1
+         AppContexts:        7           Activities:        1
+              Assets:       13        AssetManagers:        0
+       Local Binders:       31        Proxy Binders:       34
+       Parcel memory:       11         Parcel count:       43
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+
+ SQL
+         MEMORY_USED:     3572
+  PAGECACHE_OVERFLOW:     2583          MALLOC_SIZE:      233
+
+ DATABASES
+      pgsz     dbsz   Lookaside(b)          cache  Dbname
+         4     2812            100       45/46/19  /data/user/0/com.henry.chord/databases/chord.db
+         4        8                         0/0/0    (attached) temp
+         4     2812             36         3/23/4  /data/user/0/com.henry.chord/databases/chord.db (1)
+         4     2812             90      36/165/16  /data/user/0/com.henry.chord/databases/chord.db
+         4       20                         0/0/0    (attached) temp
+         4     2812            100       73/30/11  /data/user/0/com.henry.chord/databases/chord.db (1)
+         4     2812             97        36/40/5  /data/user/0/com.henry.chord/databases/chord.db (3)
+         4     2812             61         7/63/3  /data/user/0/com.henry.chord/databases/chord.db (2)

@@ -137,9 +137,13 @@ object Canonical {
             require(parsed.map { it.id }.distinct().size == parsed.size) { "Arrangement IDs must be unique." }
             val art = obj.optJSONObject("artwork")?.let { ArtworkRef(it.string("path"), it.string("sourceUrl"), it.string("credit")) }
             val links = obj.optJSONObject("musicLinks") ?: obj.optJSONObject("links")
-            fun safeUrl(value: String?): String? { require(value == null || value.startsWith("https://") || value.startsWith("http://")) { "Links must use http(s)." }; return value }
+            fun safeUrl(value: String?, service: LinkService): String? {
+                require(value == null || value.startsWith("https://") || value.startsWith("http://") || SongLinks.valid(value, service) != null) { "Links must use http(s) or an approved Spotify/YouTube deep link." }
+                if (value != null && SongLinks.valid(value, service) == null) warnings.add("Invalid ${service.name.lowercase()} track/video URL preserved for correction; it will not open directly.")
+                return value
+            }
             val document = SongDocument(songId = songId, title = title, artist = artist, album = obj.string("album"), year = obj.integer("year"), language = obj.string("language"), genre = obj.string("genre"), tags = obj.optJSONArray("tags")?.let { arr -> (0 until arr.length()).map { arr.getString(it) } } ?: emptyList(), artwork = art,
-                links = MusicLinks(safeUrl(links?.string("spotifyTrackUrl") ?: links?.string("spotify")), safeUrl(links?.string("youtubeVideoUrl") ?: links?.string("youtube"))), arrangements = parsed)
+                links = MusicLinks(safeUrl(links?.string("spotifyTrackUrl") ?: links?.string("spotify"), LinkService.SPOTIFY), safeUrl(links?.string("youtubeVideoUrl") ?: links?.string("youtube"), LinkService.YOUTUBE)), arrangements = parsed)
             ParsedDocument(document, warnings.distinct())
         }
     }

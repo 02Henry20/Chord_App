@@ -2,6 +2,7 @@
 import argparse
 import re
 import subprocess
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -15,7 +16,13 @@ def adb(*parts):
 if args.action == 'capture':
     Path(args.value).write_bytes(adb('exec-out', 'screencap', '-p'))
 else:
-    adb('shell', 'uiautomator', 'dump', '/data/local/tmp/chordroom-ui.xml')
+    for attempt in range(5):
+        status = adb('shell', 'uiautomator', 'dump', '/data/local/tmp/chordroom-ui.xml')
+        if b'dumped to' in status.lower():
+            break
+        time.sleep(.4)
+    else:
+        raise SystemExit('No fresh Android UI hierarchy; refusing to act on a stale dump.')
     root = ET.fromstring(adb('shell', 'cat', '/data/local/tmp/chordroom-ui.xml'))
     nodes = [n for n in root.iter('node') if n.get('text') or n.get('content-desc')]
     if args.action == 'dump':

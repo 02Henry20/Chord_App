@@ -1,0 +1,12 @@
+Nexus_6_API_25
+Pixel_3a_API_30
+Pixel_4_API_30
+List of devices attached
+emulator-5554          device product:sdk_gphone_x86 model:sdk_gphone_x86 device:generic_x86_arm transport_id:1
+
+Pixel_4_API_30
+30
+1
+Physical size: 1080x2280
+Physical density: 440
+1.0

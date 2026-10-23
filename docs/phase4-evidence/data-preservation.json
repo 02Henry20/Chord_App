@@ -1,0 +1,13 @@
+{
+  "before_arrangements": 331,
+  "after_arrangements": 331,
+  "catalog_exact": true,
+  "arrangements_exact_including_canonical_json_and_fingerprints": true,
+  "favorite_and_notes_exact": true,
+  "transpose_and_capo_exact": true,
+  "setlists_exact": true,
+  "setlist_entries_exact": true,
+  "managed_artwork_exact": true,
+  "after_integrity_check": "ok",
+  "after_foreign_key_violations": 0
+}

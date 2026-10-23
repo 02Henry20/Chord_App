@@ -5,6 +5,7 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -14,7 +15,7 @@ import kotlin.coroutines.coroutineContext
 
 /** Portable content archive. Personal states remain separate and are reserved for the backup phase. */
 class CollectionExport(private val context: Context, private val dao: ChordDao) {
-    suspend fun write(uri: Uri) = withContext(Dispatchers.IO) {
+    suspend fun write(uri: Uri) = LibraryFiles.mutex.withLock { withContext(Dispatchers.IO) {
         val temporary = File(context.cacheDir, "export-${Canonical.uuid()}.zip")
         try {
             val assets = linkedSetOf<String>(); val files = mutableListOf<String>()
@@ -39,5 +40,5 @@ class CollectionExport(private val context: Context, private val dao: ChordDao) 
             }
             context.contentResolver.openOutputStream(uri, "wt")?.use { output -> temporary.inputStream().use { input -> val b = ByteArray(32 * 1024); while (true) { coroutineContext.ensureActive(); val count = input.read(b); if (count < 0) break; output.write(b, 0, count) } } } ?: error("Cannot open archive destination.")
         } finally { temporary.delete() }
-    }
+    } }
 }

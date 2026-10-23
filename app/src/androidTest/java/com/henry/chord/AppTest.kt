@@ -30,6 +30,9 @@ class AppTest {
     private fun awaitText(text: String) { rule.waitUntil(15_000) { rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
     @Test fun completeSessionOnDevice() {
         val testTitle = "Device test ${System.currentTimeMillis()}"
+        val testSetName = "$testTitle session"
+        val originalPreferences = runBlocking { Settings(rule.activity).flow.first() }
+        try {
         awaitText("Make room\nfor music."); screenshot("01-home")
         rule.onNodeWithText("Library").performClick()
         awaitText("Your library"); screenshot("02-library")
@@ -45,8 +48,12 @@ class AppTest {
         awaitText("Guitar"); screenshot("04-guitar")
         rule.onNodeWithText("Piano").performClick(); screenshot("05-piano")
         rule.onNodeWithText("Done").performClick()
+        rule.mainClock.autoAdvance = false
         rule.onNodeWithContentDescription("Start auto-scroll").performClick()
+        rule.mainClock.advanceTimeBy(64)
         rule.onNodeWithContentDescription("Pause auto-scroll").assertExists().performClick()
+        rule.mainClock.advanceTimeBy(32)
+        rule.mainClock.autoAdvance = true
         rule.onNodeWithContentDescription("Fullscreen reader").performClick()
         rule.onNodeWithContentDescription("Exit fullscreen").assertExists(); screenshot("06-fullscreen")
         rule.onNodeWithContentDescription("Exit fullscreen").performClick()
@@ -55,9 +62,10 @@ class AppTest {
         rule.onNodeWithContentDescription("New song").performClick()
         rule.onNodeWithText("Song title").performTextInput(testTitle)
         rule.onNodeWithText("Artist").performTextInput("Test session")
-        rule.onNodeWithText("Chords & lyrics").performTextInput("{comment:Verse}\n[C]An original [G]test line")
+        rule.onNodeWithText("Advanced: ChordPro editor").performScrollTo().performClick()
+        rule.onNodeWithText("Chords & lyrics").performScrollTo().performTextInput("{comment:Verse}\n[C]An original [G]test line")
         rule.onNodeWithText("Your notes").performScrollTo().performTextInput("Remember a quiet intro")
-        rule.onNodeWithText("Save").performClick()
+        rule.onNodeWithText("Save").performScrollTo().performClick()
         awaitText("Your library")
         rule.onNodeWithText(testTitle).performClick()
         awaitText("KEY C")
@@ -67,9 +75,9 @@ class AppTest {
         rule.onNodeWithText("Setlists").performClick()
         awaitText("Set the mood."); screenshot("07-setlists")
         rule.onNodeWithContentDescription("New setlist").performClick()
-        rule.onNodeWithText("Setlist name").performTextInput("Device test session")
+        rule.onNodeWithText("Setlist name").performTextInput(testSetName)
         rule.onNodeWithText("Save").performClick()
-        awaitText("Running order".uppercase())
+        awaitText("Running order")
         rule.onNodeWithText("Add songs").performClick()
         rule.onNodeWithText(testTitle).performClick()
         rule.onNodeWithText("A little closer").performClick()
@@ -80,20 +88,21 @@ class AppTest {
         rule.onNodeWithContentDescription("Next song").performClick()
         awaitText(testTitle)
         rule.onNodeWithContentDescription("Previous song").assertIsEnabled()
+        rule.onNodeWithContentDescription("Exit fullscreen").performClick()
         rule.onNodeWithContentDescription("Back").performClick()
         rule.onNodeWithContentDescription("Delete setlist").performClick()
         rule.onNodeWithText("Delete", useUnmergedTree = false).performClick()
         awaitText("Set the mood.")
         rule.onNodeWithText("Import").performClick(); awaitText("Bring your songs."); screenshot("08-import")
         rule.onNodeWithText("Settings").performClick(); awaitText("Make it yours."); screenshot("09-settings")
-        rule.onNodeWithTag("Dark appearance").performClick()
+        rule.onNodeWithTag("theme-DARK").performClick()
         rule.waitUntil(5_000) { runBlocking { Settings(rule.activity).flow.first().dark } }
-        rule.onNodeWithTag("Dark appearance").assertIsOn()
+        rule.onNodeWithTag("theme-DARK").assertIsSelected()
         screenshot("10-dark")
         rule.activityRule.scenario.recreate()
         awaitText("Make it yours.")
-        rule.onNodeWithTag("Dark appearance").assertIsOn()
-        rule.onNodeWithTag("Dark appearance").performClick()
+        rule.onNodeWithTag("theme-DARK").assertIsSelected()
+        rule.onNodeWithTag("theme-LIGHT").performClick()
         rule.waitUntil(5_000) { runBlocking { !Settings(rule.activity).flow.first().dark } }
         rule.onNodeWithText("Library").performClick()
         rule.onNodeWithText(testTitle).performClick()
@@ -102,6 +111,17 @@ class AppTest {
         rule.onNodeWithText("Delete", useUnmergedTree = false).performClick()
         awaitText("Your library")
         rule.onNodeWithText("Home").performClick()
+        } finally {
+            rule.mainClock.autoAdvance = true
+            runBlocking {
+                Settings(rule.activity).save(originalPreferences)
+                val db=Room.databaseBuilder(rule.activity,ChordDatabase::class.java,"chord.db").addMigrations(MIGRATION_1_2,MIGRATION_2_3,MIGRATION_3_4).build()
+                try {
+                    db.dao().snapshotSets().filter { it.name==testSetName }.forEach { db.dao().deleteSetlist(it) }
+                    db.dao().songs().first().filter { it.title==testTitle && it.artist=="Test session" }.forEach { db.dao().delete(it) }
+                } finally { db.close() }
+            }
+        }
     }
 
     @Test fun roomSearchImportAndPersistence(): Unit = runBlocking {

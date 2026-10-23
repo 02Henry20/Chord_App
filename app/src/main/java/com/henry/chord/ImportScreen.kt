@@ -30,22 +30,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
-fun LocalArtwork(path: String?, identity: String, description: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val image by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, path, identity) {
-        val decoded = withContext(Dispatchers.IO) {
-            val store = ArtworkStore(context)
-            val file = if (path != null) File(path) else store.thumbnailPath(null, identity).also { store.placeholder(identity, it) }
-            runCatching { BitmapFactory.decodeFile(file.path)?.asImageBitmap() }.getOrNull()
-        }
-        withContext(Dispatchers.Main.immediate) { value = decoded }
-    }
-    val current = image
-    if (current != null) Image(current, description, modifier.clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-    else Box(modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.MusicNote, description) }
-}
-
-@Composable
 fun ImportScreen(dao: ChordDao, library: () -> Unit) {
     val context = LocalContext.current
     val controller: ImportController = viewModel(factory = remember(dao) { object : ViewModelProvider.Factory {
@@ -146,7 +130,7 @@ private fun ImportPreview(candidate: ImportCandidate, dao: ChordDao, dismiss: ()
                     Text("${match.title}\n${match.artist} · ${match.arrangementName} · ${match.key.ifBlank { "Unknown key" }}", fontSize = 13.sp)
                     Text("Replacing keeps its personal state and setlist references. Compare this sheet before choosing Replace.", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(vertical = 8.dp))
                     val old = remember(match.documentJson) { Canonical.decode(match.documentJson).single().document.arrangements.single() }
-                    old.sections.firstOrNull()?.lines?.take(2)?.forEach { CanonicalSheetLine(it, 13, { raw -> raw }, { raw -> raw }) {} }
+                    old.sections.firstOrNull()?.lines?.take(2)?.forEach { CanonicalSheetLine(it, 13, { raw -> raw }, { raw -> raw }, {}) }
                     Text("Incoming arrangement", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
                 }
                 if (candidate.needsReview) {
@@ -156,7 +140,7 @@ private fun ImportPreview(candidate: ImportCandidate, dao: ChordDao, dismiss: ()
                     if (original) SelectionContainerCompat(raw.readText())
                     else OutlinedTextField(editor ?: a.editorText(), { editor = it }, Modifier.fillMaxWidth().heightIn(min = 180.dp), label = { Text("Review chords & lyrics") })
                 } else {
-                    a.sections.take(3).forEach { section -> Text(section.label, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)); section.lines.take(5).forEach { CanonicalSheetLine(it, 15, { raw -> raw }, { raw -> raw }) {} } }
+                    a.sections.take(3).forEach { section -> Text(section.label, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp)); section.lines.take(5).forEach { CanonicalSheetLine(it, 15, { raw -> raw }, { raw -> raw }, {}) } }
                 }
             }
         }

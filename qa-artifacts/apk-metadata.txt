@@ -1,0 +1,6 @@
+Package=com.henry.chord
+Activity=com.henry.chord/.MainActivity
+Version=1.0.0-rc1 (7)
+Path=E:\Henry_Luu\Programming\Chord_App\app\build\outputs\apk\debug\app-debug.apk
+Bytes=20097052
+SHA256=E4FCEE4DE72D7C0B4BE158514CD476B58FDBE24F7E18D51766F06353C41AC331

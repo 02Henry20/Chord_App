@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "songId": "77d01668-71a5-5678-b39b-c7a7783acb16",
+  "title": "Release import single",
+  "artist": "Release original fixtures",
+  "originalKey": "C",
+  "tonalMode": "major",
+  "sections": [
+    {
+      "id": "d6a66eef-f1bb-57fe-b89f-0f2ade825f1e",
+      "type": "verse",
+      "label": "Verse",
+      "lines": [
+        {
+          "id": "d000a499-0f62-57a3-9922-5d208a6e1753",
+          "segments": [
+            {
+              "id": "20d70e7d-64d0-5e94-9e7d-fe0008c65381",
+              "text": "Un"
+            },
+            {
+              "id": "5a14eed8-53b7-5a34-b121-bfeec3645242",
+              "chord": "C",
+              "text": "der écho "
+            },
+            {
+              "id": "467ab26a-197a-5e7e-a825-b7cd604f2af1",
+              "chord": "G",
+              "text": "日本"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

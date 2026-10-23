@@ -33,6 +33,13 @@ class MusicTest {
         assertEquals("\"love\"* \"OR\"* \"blue\"*", SongImport.searchQuery("love OR \"blue\"*"))
         assertEquals("", SongImport.searchQuery("*** \""))
     }
+    @Test fun chordProExportKeepsExplicitMinorModeAndCanonicalKey() {
+        val song = Song(title = "Minor original", key = "A", tonalMode = "minor", transpose = 2, body = "[Am]Sing")
+        val exported = SongImport.export(song)
+        assertTrue(exported.contains("{key: Am}"))
+        assertTrue(exported.contains("[Am]Sing"))
+        assertFalse(exported.contains("{key: Bm}"))
+    }
     @Test(expected = IllegalArgumentException::class) fun rejectsBinaryImport() { SongImport.parse("abc\u0000", "bad.txt") }
     @Test(expected = IllegalArgumentException::class) fun rejectsEmptyImport() { SongImport.parse("   ", "empty.txt") }
 }

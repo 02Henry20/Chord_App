@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.henry.chord"
     compileSdk = 36
-    defaultConfig { applicationId = "com.henry.chord"; minSdk = 26; targetSdk = 36; versionCode = 3; versionName = "3.0-phase3"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    defaultConfig { applicationId = "com.henry.chord"; minSdk = 26; targetSdk = 36; versionCode = 7; versionName = "1.0.0-rc1"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
     buildFeatures { compose = true }
     sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

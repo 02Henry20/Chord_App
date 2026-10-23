@@ -10,7 +10,7 @@ data class Song(
     val id: Long = 0, val title: String, val artist: String = "Original", val key: String = "C", val body: String,
     val favorite: Boolean = false, val notes: String = "", val transpose: Int = 0, val capo: Int = 0,
     val lastOpened: Long = 0, val source: String = "", val songUuid: String = "", val arrangementUuid: String = "",
-    val documentJson: String = "", val artworkPath: String? = null, val arrangementName: String = "Main"
+    val documentJson: String = "", val artworkPath: String? = null, val arrangementName: String = "Main", val album: String = "", val year: Int? = null, val tagsJson: String = "[]", val tonalMode: String? = null, val tempoBpm: Double? = null, val addedAt: Long = 0
 )
 @Entity(tableName = "catalog_songs")
 data class CatalogSong(@PrimaryKey val songUuid: String, val title: String, val artist: String)
@@ -30,19 +30,40 @@ data class ArrangementUserState(@PrimaryKey val arrangementId: Long, val transpo
 @Fts4
 @Entity(tableName = "arrangement_search")
 data class ArrangementSearch(@PrimaryKey @ColumnInfo(name = "rowid") val id: Long, val title: String, val artist: String, val body: String)
-@Entity(tableName = "setlists")
-data class Setlist(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String)
-@Entity(tableName = "setlist_entries", primaryKeys = ["setlistId", "songId"], foreignKeys = [
+@Entity(tableName = "setlists", indices=[Index(value=["uuid"],unique=true)])
+data class Setlist(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, @ColumnInfo(defaultValue="''") val uuid: String = Canonical.uuid())
+@Entity(tableName="app_metadata")
+data class AppMetadata(@PrimaryKey val name: String,val value: String)
+@Entity(tableName = "setlist_entries", foreignKeys = [
     ForeignKey(entity = ArrangementRecord::class, parentColumns = ["id"], childColumns = ["songId"], onDelete = ForeignKey.CASCADE),
     ForeignKey(entity = Setlist::class, parentColumns = ["id"], childColumns = ["setlistId"], onDelete = ForeignKey.CASCADE)
-], indices = [Index("songId")])
-data class SetlistEntry(val setlistId: Long, val songId: Long, val position: Int)
+], indices = [Index("songId"), Index("setlistId")])
+data class SetlistEntry(val setlistId: Long, val songId: Long, val position: Int, @PrimaryKey val entryId: String = Canonical.uuid(), val transposeOverride: Int? = null, val notes: String = "")
 
-private const val SONG_SELECT = "SELECT a.id, c.title, c.artist, COALESCE(a.originalKey, '') AS `key`, a.body, u.favorite, u.notes, p.transpose, p.capo, u.lastOpened, a.source, a.songUuid, a.arrangementUuid, a.documentJson, a.artworkPath, a.name AS arrangementName FROM arrangements a JOIN catalog_songs c ON c.songUuid=a.songUuid JOIN song_user_state u ON u.songUuid=a.songUuid JOIN arrangement_user_state p ON p.arrangementId=a.id"
-private const val SUMMARY_SELECT = "SELECT a.id, c.title, c.artist, COALESCE(a.originalKey, '') AS `key`, '' AS body, u.favorite, '' AS notes, p.transpose, p.capo, u.lastOpened, '' AS source, a.songUuid, a.arrangementUuid, '' AS documentJson, a.artworkPath, a.name AS arrangementName FROM arrangements a JOIN catalog_songs c ON c.songUuid=a.songUuid JOIN song_user_state u ON u.songUuid=a.songUuid JOIN arrangement_user_state p ON p.arrangementId=a.id"
+private const val SONG_SELECT = "SELECT a.id, c.title, c.artist, COALESCE(a.originalKey, '') AS `key`, a.body, u.favorite, u.notes, p.transpose, p.capo, u.lastOpened, a.source, a.songUuid, a.arrangementUuid, a.documentJson, a.artworkPath, a.name AS arrangementName, m.album, m.year, m.tagsJson, m.tonalMode, m.tempoBpm, m.addedAt FROM arrangements a JOIN catalog_songs c ON c.songUuid=a.songUuid JOIN song_user_state u ON u.songUuid=a.songUuid JOIN arrangement_user_state p ON p.arrangementId=a.id JOIN library_index m ON m.id=a.id"
+private const val SUMMARY_SELECT = "SELECT a.id, c.title, c.artist, COALESCE(a.originalKey, '') AS `key`, '' AS body, u.favorite, '' AS notes, p.transpose, p.capo, u.lastOpened, '' AS source, a.songUuid, a.arrangementUuid, '' AS documentJson, a.artworkPath, a.name AS arrangementName, m.album, m.year, m.tagsJson, m.tonalMode, m.tempoBpm, m.addedAt FROM arrangements a JOIN catalog_songs c ON c.songUuid=a.songUuid JOIN song_user_state u ON u.songUuid=a.songUuid JOIN arrangement_user_state p ON p.arrangementId=a.id JOIN library_index m ON m.id=a.id"
 
 @Dao
 abstract class ChordDao {
+    @RawQuery(observedEntities = [LibraryIndex::class, LibraryGrams::class, SongUserState::class, ArrangementUserState::class, CatalogSong::class, ArrangementRecord::class, LibraryTag::class]) abstract fun libraryResults(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<LibraryHit>>
+    @RawQuery(observedEntities = [LibraryIndex::class, LibraryGrams::class, SongUserState::class, ArrangementUserState::class, CatalogSong::class, ArrangementRecord::class, LibraryTag::class]) abstract fun libraryResultCount(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<Int>
+    @Query("SELECT text FROM library_excerpts WHERE arrangementId=:id AND instr(normalized,:term)>0 ORDER BY position LIMIT 1") abstract suspend fun excerpt(id: Long, term: String): String?
+    @Query("SELECT addedAt FROM library_index WHERE id=:id") abstract suspend fun addedAt(id: Long): Long?
+    @Upsert abstract suspend fun putLibrary(value: LibraryIndex)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun putGrams(value: LibraryGrams)
+    @Query("DELETE FROM library_grams WHERE rowid=:id") abstract suspend fun removeGrams(id: Long)
+    @Query("DELETE FROM library_excerpts WHERE arrangementId=:id") abstract suspend fun removeExcerpts(id: Long)
+    @Insert abstract suspend fun putExcerpts(values: List<LibraryExcerpt>)
+    @Query("DELETE FROM library_tags WHERE arrangementId=:id") abstract suspend fun removeTags(id: Long)
+    @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun putTags(values: List<LibraryTag>)
+    @Query("UPDATE song_user_state SET lastOpened=0") abstract suspend fun clearHistory()
+    @Transaction open suspend fun indexLibrary(id: Long, doc: SongDocument) {
+        val metadata = LibrarySearch.index(id, doc, addedAt(id) ?: System.currentTimeMillis())
+        putLibrary(metadata); putGrams(LibrarySearch.grams(metadata))
+        removeExcerpts(id); putExcerpts(LibrarySearch.excerpts(id, doc.arrangements.single().lyricText()))
+        removeTags(id); putTags(doc.tags.distinct().map { LibraryTag(id,it) })
+    }
+
     @Query("$SONG_SELECT ORDER BY c.title COLLATE NOCASE, a.id") abstract fun songs(): Flow<List<Song>>
     @Query("$SUMMARY_SELECT ORDER BY c.title COLLATE NOCASE, a.id") abstract fun librarySummaries(): Flow<List<Song>>
     @Query("$SUMMARY_SELECT JOIN arrangement_search ON a.id=arrangement_search.rowid WHERE arrangement_search MATCH :query ORDER BY c.title COLLATE NOCASE") abstract fun searchSummaries(query: String): Flow<List<Song>>
@@ -79,10 +100,29 @@ abstract class ChordDao {
     @Delete abstract suspend fun deleteSetlist(setlist: Setlist)
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun addEntry(entry: SetlistEntry)
     @Query("DELETE FROM setlist_entries WHERE setlistId=:id AND songId=:songId") abstract suspend fun removeEntry(id: Long, songId: Long)
+    @Delete abstract suspend fun deleteEntry(entry: SetlistEntry)
+    @Update abstract suspend fun updateEntry(entry: SetlistEntry)
     @Update abstract suspend fun updateEntries(entries: List<SetlistEntry>)
     @Query("SELECT COUNT(*) FROM arrangements") abstract suspend fun count(): Int
     @Query("SELECT COUNT(*) FROM arrangements a JOIN catalog_songs c ON c.songUuid=a.songUuid WHERE c.title=:title AND c.artist=:artist AND a.body=:body") abstract suspend fun duplicateCount(title: String, artist: String, body: String): Int
     @Transaction open suspend fun reorder(entries: List<SetlistEntry>) = updateEntries(entries.mapIndexed { i, e -> e.copy(position = i) })
+    @Transaction open suspend fun duplicateSetlist(set: Setlist): Long {
+        val id = insertSetlist(Setlist(name=set.name + " (copy)"))
+        snapshotEntries().filter { it.setlistId == set.id }.forEach { addEntry(it.copy(setlistId=id,entryId=Canonical.uuid())) }
+        return id
+    }
+    @Query("SELECT * FROM setlist_entries ORDER BY setlistId,position") abstract suspend fun snapshotEntries(): List<SetlistEntry>
+    @Query("SELECT * FROM setlists ORDER BY id") abstract suspend fun snapshotSets(): List<Setlist>
+    @Query("SELECT * FROM song_user_state") abstract suspend fun snapshotUsers(): List<SongUserState>
+    @Query("SELECT * FROM arrangement_user_state") abstract suspend fun snapshotOffsets(): List<ArrangementUserState>
+    @Query("SELECT value FROM app_metadata WHERE name=:name") abstract suspend fun metadata(name: String): String?
+    @Upsert abstract suspend fun saveMetadata(value: AppMetadata)
+    @Query("DELETE FROM app_metadata WHERE name=:name") abstract suspend fun deleteMetadata(name: String)
+    @Query("DELETE FROM setlists") abstract suspend fun clearSets()
+    @Query("DELETE FROM arrangement_search") abstract suspend fun clearLegacySearch()
+    @Query("DELETE FROM library_grams") abstract suspend fun clearGrams()
+    @Query("DELETE FROM catalog_songs") abstract suspend fun clearCatalog()
+    @Transaction open suspend fun clearLibrary() { clearSets(); clearLegacySearch(); clearGrams(); clearCatalog() }
 
     /** Replace retains the target's IDs, personal offsets, favorite, notes and every setlist entry. */
     @Transaction open suspend fun store(document: SongDocument, replaceId: Long? = null, preferredTranspose: Int = 0): Long {
@@ -101,6 +141,7 @@ abstract class ChordDao {
                 val portable = Canonical.decode(sibling.documentJson).single().document.copy(title = doc.title, artist = doc.artist)
                 changeArrangement(sibling.copy(documentJson = Canonical.encode(portable), fingerprint = Canonical.fingerprint(portable), normalizedIdentity = identity(portable)))
                 index(ArrangementSearch(sibling.id, doc.title, doc.artist, portable.arrangements.single().lyricText()))
+                indexLibrary(sibling.id, portable)
             }
         }
         addUserState(SongUserState(targetSong))
@@ -110,6 +151,7 @@ abstract class ChordDao {
         val id = if (old == null) addArrangement(row) else { changeArrangement(row); old.id }
         addOffsets(ArrangementUserState(id, preferredTranspose))
         index(ArrangementSearch(id, doc.title, doc.artist, a.lyricText()))
+        indexLibrary(id, doc)
         return id
     }
     @Transaction open suspend fun insert(song: Song): Long {
@@ -125,7 +167,21 @@ abstract class ChordDao {
         saveUserState(SongUserState(current.songUuid, song.favorite, song.notes, song.lastOpened))
         saveOffsets(ArrangementUserState(song.id, song.transpose, song.capo))
     }
-    @Transaction open suspend fun delete(song: Song) { removeIndex(song.id); removeArrangement(song.id); removeEmptyCatalog(song.songUuid) }
+    @Transaction open suspend fun saveEditor(song: Song, album: String?, year: Int?, tags: List<String>, links: MusicLinks, artwork: ArtworkRef?, arrangement: ArrangementDoc? = null): Long {
+        val base = legacyDocument(song)
+        val doc = base.copy(album = album, year = year, tags = tags, links = links, arrangements=arrangement?.let { listOf(it) } ?: base.arrangements).let { if (artwork != null) it.copy(artwork = artwork) else it }
+        Canonical.decode(Canonical.encode(doc)) // Validate native editor output before any database mutation.
+        val id = store(doc, song.id.takeIf { it != 0L })
+        // These details belong to the song, so sibling arrangements receive the same edits.
+        for (sibling in songArrangements(doc.songId).filter { it.id != id }) {
+            val old = Canonical.decode(sibling.documentJson).single().document
+            store(old.copy(album = album, year = year, tags = tags, links = links, artwork = artwork ?: old.artwork), sibling.id)
+        }
+        saveUserState(SongUserState(doc.songId, song.favorite, song.notes, song.lastOpened))
+        saveOffsets(ArrangementUserState(id, song.transpose, song.capo))
+        return id
+    }
+    @Transaction open suspend fun delete(song: Song) { removeGrams(song.id); removeIndex(song.id); removeArrangement(song.id); removeEmptyCatalog(song.songUuid) }
     companion object {
         fun identity(doc: SongDocument) = listOf(doc.title, doc.artist, doc.arrangements.single().name).joinToString("\u001F") { Canonical.normalized(it) }
         fun legacyDocument(song: Song): SongDocument {
@@ -141,8 +197,24 @@ abstract class ChordDao {
     }
 }
 
-@Database(entities = [CatalogSong::class, ArrangementRecord::class, SongUserState::class, ArrangementUserState::class, ArrangementSearch::class, Setlist::class, SetlistEntry::class], version = 2, exportSchema = true)
+@Database(entities = [CatalogSong::class, ArrangementRecord::class, SongUserState::class, ArrangementUserState::class, ArrangementSearch::class, LibraryIndex::class, LibraryGrams::class, LibraryExcerpt::class, LibraryTag::class, Setlist::class, SetlistEntry::class, AppMetadata::class], version = 4, exportSchema = true)
 abstract class ChordDatabase : RoomDatabase() { abstract fun dao(): ChordDao }
+
+val MIGRATION_3_4 = object : Migration(3,4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE setlists ADD COLUMN uuid TEXT NOT NULL DEFAULT ''")
+        db.execSQL("UPDATE setlists SET uuid=lower(hex(randomblob(16)))")
+        db.execSQL("CREATE UNIQUE INDEX index_setlists_uuid ON setlists(uuid)")
+        db.execSQL("CREATE TABLE app_metadata (name TEXT NOT NULL PRIMARY KEY,value TEXT NOT NULL)")
+        db.execSQL("UPDATE library_index SET originalKey=originalKey || 'm' WHERE tonalMode='minor' AND originalKey<>'' AND substr(originalKey,-1)<>'m'")
+        db.execSQL("CREATE TABLE setlist_entries_v4 (setlistId INTEGER NOT NULL, songId INTEGER NOT NULL, position INTEGER NOT NULL, entryId TEXT NOT NULL PRIMARY KEY, transposeOverride INTEGER, notes TEXT NOT NULL, FOREIGN KEY(songId) REFERENCES arrangements(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(setlistId) REFERENCES setlists(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+        db.execSQL("INSERT INTO setlist_entries_v4 SELECT setlistId,songId,position,lower(hex(randomblob(16))),NULL,'' FROM setlist_entries")
+        db.execSQL("DROP TABLE setlist_entries")
+        db.execSQL("ALTER TABLE setlist_entries_v4 RENAME TO setlist_entries")
+        db.execSQL("CREATE INDEX index_setlist_entries_songId ON setlist_entries(songId)")
+        db.execSQL("CREATE INDEX index_setlist_entries_setlistId ON setlist_entries(setlistId)")
+    }
+}
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
