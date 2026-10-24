@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.LibraryTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-24T10:30:31.141Z" hostname="HENRY-COMPUTER" time="0.033">
+  <properties/>
+  <testcase name="fragmentsAreEncodedAsSafeFtsTokens" classname="com.henry.chord.LibraryTest" time="0.007"/>
+  <testcase name="boundedChunksPreserveLongUnicodeMatches" classname="com.henry.chord.LibraryTest" time="0.011"/>
+  <testcase name="normalizationAndUnicodeHighlighting" classname="com.henry.chord.LibraryTest" time="0.003"/>
+  <testcase name="officialLinksValidateWithoutGuessingIdentity" classname="com.henry.chord.LibraryTest" time="0.005"/>
+  <testcase name="explicitMinorModeAppearsInLibraryKeys" classname="com.henry.chord.LibraryTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

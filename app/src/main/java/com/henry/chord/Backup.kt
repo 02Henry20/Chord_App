@@ -17,14 +17,21 @@ object PreferenceFormat {
     fun encode(p: Preferences): JSONObject = JSONObject().put("version",1).put("theme",p.theme.name).put("instrument",p.instrument).put("fontSize",p.fontSize)
         .put("keepAwake",p.keepAwake).put("chordLabels",p.chordLabels.name).put("spelling",p.spelling.name).put("scrollSpeed",p.scrollSpeed)
         .put("leadIn",p.leadIn).put("lineSpacing",p.lineSpacing).put("chordColor",p.chordColor).put("sheetDisplay",p.sheetDisplay.name)
+        .put("sheetMargin",p.sheetMargin).put("songLineGap",p.songLineGap).put("chordLineGap",p.chordLineGap).put("sectionGap",p.sectionGap)
     fun decode(o: JSONObject): Preferences {
         require(o.getInt("version") == 1) { "Unsupported settings version. Update Chordroom." }
         val theme=ThemeMode.valueOf(o.getString("theme")); val instrument=o.getString("instrument")
         require(instrument in listOf("Piano","Guitar"))
+        fun margin(key: String,default: Float,range: ClosedFloatingPointRange<Float>): Float {
+            if (!o.has(key)) return default
+            require(o.get(key) is Number) { "$key must be a number." }
+            return o.getDouble(key).toFloat().also { require(it.isFinite() && it in range) { "$key is out of range." } }
+        }
         return Preferences(theme=theme,dark=theme == ThemeMode.DARK,instrument=instrument,fontSize=o.getInt("fontSize").also { require(it in 14..30) },
             keepAwake=o.getBoolean("keepAwake"),chordLabels=LabelMode.valueOf(o.getString("chordLabels")),spelling=Spelling.valueOf(o.getString("spelling")),
             scrollSpeed=o.getDouble("scrollSpeed").toFloat().also { require(it.isFinite() && it in 8f..100f) },leadIn=o.getInt("leadIn").also { require(it in listOf(0,3,5)) },
-            lineSpacing=o.getDouble("lineSpacing").toFloat().also { require(it.isFinite() && it in 1f..2f) },chordColor=o.getString("chordColor").also { require(it in listOf("Theme","Blue","Amber")) },sheetDisplay=SheetDisplay.valueOf(o.getString("sheetDisplay")))
+            lineSpacing=o.getDouble("lineSpacing").toFloat().also { require(it.isFinite() && it in 1f..2f) },chordColor=o.getString("chordColor").also { require(it in listOf("Theme","Blue","Amber")) },sheetDisplay=SheetDisplay.valueOf(o.getString("sheetDisplay")),
+            sheetMargin=margin("sheetMargin",16f,4f..40f),songLineGap=margin("songLineGap",6f,0f..24f),chordLineGap=margin("chordLineGap",2f,0f..12f),sectionGap=margin("sectionGap",12f,0f..32f))
     }
 }
 data class BackupPreview(val root: File,val manifest: JSONObject,val songs: Int,val versions: Int,val covers: Int,val sets: Int)

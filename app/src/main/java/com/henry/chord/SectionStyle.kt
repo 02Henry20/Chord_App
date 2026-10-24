@@ -37,10 +37,10 @@ fun sectionBackground(type: String): Color {
 }
 
 @Composable
-fun SectionBadge(section: SheetSection) {
-    Surface(Modifier.fillMaxWidth().padding(top=14.dp, bottom=8.dp), color=sectionBackground(section.type), shape=RoundedCornerShape(10.dp)) {
+fun SectionBadge(section: SheetSection, gap: Float = 12f) {
+    Surface(Modifier.fillMaxWidth().padding(top=gap.dp, bottom=6.dp), color=sectionBackground(section.type), shape=RoundedCornerShape(10.dp)) {
         Text(section.label.ifBlank { section.type.replaceFirstChar { it.uppercase() } },
-            Modifier.padding(horizontal=14.dp,vertical=12.dp).semantics { heading() },
+            Modifier.padding(horizontal=10.dp,vertical=8.dp).semantics { heading() },
             fontSize=13.sp,fontWeight=FontWeight.Bold,letterSpacing=.7.sp,color=MaterialTheme.colorScheme.onSurface)
     }
 }

@@ -1,0 +1,11 @@
+{
+  "package": "com.henry.chord",
+  "activity": "com.henry.chord/.MainActivity",
+  "version": "1.0.0-rc3",
+  "versionCode": 9,
+  "apk": "app/build/outputs/apk/debug/app-debug.apk",
+  "bytes": 21834413,
+  "sha256": "f447e80bcdf02c9f476e8b4638cbb100c8b41d4ef66ab079731aeb872cea3086",
+  "profiledApkSha256": "1e602d7b479fb19ac4b69093022995a596ba11bbfe34944cdb42c19d91f183d8",
+  "installedMatchesFinalApk": true
+}

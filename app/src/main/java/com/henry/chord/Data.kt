@@ -9,17 +9,34 @@ val Context.preferences by preferencesDataStore("preferences")
 enum class ThemeMode(val title: String) { LIGHT("Light"), DARK("Dark"), SYSTEM("System") }
 enum class SheetDisplay(val title: String) { BOTH("Chords and lyrics"), LYRICS("Lyrics only"), CHORDS("Chords only") }
 data class Preferences(val dark: Boolean = false, val instrument: String = "Piano", val fontSize: Int = 19, val keepAwake: Boolean = true, val chordLabels: LabelMode = LabelMode.SYMBOLS, val spelling: Spelling = Spelling.AUTO, val theme: ThemeMode = ThemeMode.SYSTEM,
-    val scrollSpeed: Float = 22f, val leadIn: Int = 0, val lineSpacing: Float = 1.35f, val chordColor: String = "Theme", val sheetDisplay: SheetDisplay = SheetDisplay.BOTH)
+    val scrollSpeed: Float = 22f, val leadIn: Int = 0, val lineSpacing: Float = 1.35f, val chordColor: String = "Theme", val sheetDisplay: SheetDisplay = SheetDisplay.BOTH,
+    val sheetMargin: Float = 16f, val songLineGap: Float = 6f, val chordLineGap: Float = 2f, val sectionGap: Float = 12f)
 class Settings(private val context: Context) {
-    val flow = context.preferences.data.map {
+    val flow = context.preferences.data.map(::read)
+    private fun read(it: androidx.datastore.preferences.core.Preferences): Preferences {
         val theme = runCatching { ThemeMode.valueOf(it[stringPreferencesKey("theme")] ?: "") }.getOrDefault(it[booleanPreferencesKey("dark")]?.let { old -> if (old) ThemeMode.DARK else ThemeMode.LIGHT } ?: ThemeMode.SYSTEM)
-        Preferences(theme == ThemeMode.DARK, it[stringPreferencesKey("instrument")] ?: "Piano", it[intPreferencesKey("fontSize")] ?: 19, it[booleanPreferencesKey("keepAwake")] ?: true,
+        return Preferences(theme == ThemeMode.DARK, it[stringPreferencesKey("instrument")] ?: "Piano", it[intPreferencesKey("fontSize")] ?: 19, it[booleanPreferencesKey("keepAwake")] ?: true,
         labelPreference(it[stringPreferencesKey("chordLabels")], it[booleanPreferencesKey("roman")] ?: false),
         runCatching { Spelling.valueOf(it[stringPreferencesKey("spelling")] ?: "AUTO") }.getOrDefault(Spelling.AUTO), theme,
         (it[floatPreferencesKey("scrollSpeed")] ?: 22f).coerceIn(8f,100f), (it[intPreferencesKey("leadIn")] ?: 0).takeIf { n -> n in listOf(0,3,5) } ?: 0,
         (it[floatPreferencesKey("lineSpacing")] ?: 1.35f).coerceIn(1f,2f), it[stringPreferencesKey("chordColor")] ?: "Theme",
-        runCatching { SheetDisplay.valueOf(it[stringPreferencesKey("sheetDisplay")] ?: "BOTH") }.getOrDefault(SheetDisplay.BOTH)) }
-    suspend fun save(p: Preferences) { context.preferences.edit { it[booleanPreferencesKey("dark")] = p.theme == ThemeMode.DARK; it[stringPreferencesKey("theme")] = p.theme.name; it[stringPreferencesKey("instrument")] = p.instrument; it[intPreferencesKey("fontSize")] = p.fontSize; it[booleanPreferencesKey("keepAwake")] = p.keepAwake; it[stringPreferencesKey("chordLabels")] = p.chordLabels.name; it[stringPreferencesKey("spelling")] = p.spelling.name; it[floatPreferencesKey("scrollSpeed")] = p.scrollSpeed; it[intPreferencesKey("leadIn")] = p.leadIn; it[floatPreferencesKey("lineSpacing")] = p.lineSpacing; it[stringPreferencesKey("chordColor")] = p.chordColor; it[stringPreferencesKey("sheetDisplay")] = p.sheetDisplay.name } }
+        runCatching { SheetDisplay.valueOf(it[stringPreferencesKey("sheetDisplay")] ?: "BOTH") }.getOrDefault(SheetDisplay.BOTH),
+        (it[floatPreferencesKey("sheetMargin")] ?: 16f).coerceIn(4f,40f), (it[floatPreferencesKey("songLineGap")] ?: 6f).coerceIn(0f,24f),
+        (it[floatPreferencesKey("chordLineGap")] ?: 2f).coerceIn(0f,12f), (it[floatPreferencesKey("sectionGap")] ?: 12f).coerceIn(0f,32f)) }
+    private fun write(it: MutablePreferences,p: Preferences) {
+        it[booleanPreferencesKey("dark")]=p.theme==ThemeMode.DARK
+        it[stringPreferencesKey("theme")]=p.theme.name; it[stringPreferencesKey("instrument")]=p.instrument
+        it[intPreferencesKey("fontSize")]=p.fontSize; it[booleanPreferencesKey("keepAwake")]=p.keepAwake
+        it[stringPreferencesKey("chordLabels")]=p.chordLabels.name; it[stringPreferencesKey("spelling")]=p.spelling.name
+        it[floatPreferencesKey("scrollSpeed")]=p.scrollSpeed; it[intPreferencesKey("leadIn")]=p.leadIn
+        it[floatPreferencesKey("lineSpacing")]=p.lineSpacing; it[stringPreferencesKey("chordColor")]=p.chordColor
+        it[stringPreferencesKey("sheetDisplay")]=p.sheetDisplay.name; it[floatPreferencesKey("sheetMargin")]=p.sheetMargin
+        it[floatPreferencesKey("songLineGap")]=p.songLineGap; it[floatPreferencesKey("chordLineGap")]=p.chordLineGap
+        it[floatPreferencesKey("sectionGap")]=p.sectionGap
+    }
+    suspend fun save(p: Preferences) { context.preferences.edit { write(it,p) } }
+    suspend fun update(change: (Preferences)->Preferences) { context.preferences.edit { write(it,change(read(it))) } }
+    suspend fun saveScrollSpeed(speed: Float) { context.preferences.edit { it[floatPreferencesKey("scrollSpeed")]=speed.coerceIn(8f,100f) } }
     companion object {
         fun labelPreference(stored: String?, legacyRoman: Boolean): LabelMode = runCatching { LabelMode.valueOf(stored ?: "") }.getOrDefault(if (legacyRoman) LabelMode.ROMAN else LabelMode.SYMBOLS)
     }

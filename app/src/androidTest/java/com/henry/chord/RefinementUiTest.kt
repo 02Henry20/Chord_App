@@ -80,18 +80,19 @@ class RefinementUiTest {
         rule.onNodeWithText("Settings").performClick(); await("Make it yours.")
         rule.onNodeWithTag("theme-LIGHT").assertDoesNotExist(); rule.onNodeWithTag("font-size").assertDoesNotExist(); shot("04-settings-collapsed-light")
         category("Song reader"); rule.onNodeWithTag("font-size").assertExists()
+        rule.onNodeWithTag("settings-live-example").performScrollTo()
         val before=rule.onNodeWithTag("settings-live-example").fetchSemanticsNode().boundsInRoot.height
-        rule.onNodeWithTag("font-size").performTouchInput { click(Offset(width*.9f,height/2f)) }
+        rule.onNodeWithTag("font-size").performScrollTo().performTouchInput { click(Offset(width*.9f,height/2f)) }
         rule.waitUntil(5000) { runBlocking { Settings(context).flow.first().fontSize>=27 } }
         rule.onNodeWithTag("settings-live-example").performScrollTo()
         val after=rule.onNodeWithTag("settings-live-example").fetchSemanticsNode().boundsInRoot.height
         assertTrue("Preview must respond to font size",after>before); shot("05-settings-large-live-example")
         rule.onNodeWithTag("line-spacing").performScrollTo().performTouchInput { click(Offset(width*.9f,height/2f)) }
         rule.waitUntil(5000) { runBlocking { Settings(context).flow.first().lineSpacing>1.8f } }
-        category("Note spelling"); rule.onNodeWithTag("font-size").assertDoesNotExist()
-        rule.onNodeWithTag("spelling-FLATS").performClick(); rule.onNodeWithTag("settings-live-example").performScrollTo()
+        category("Chords & instrument"); rule.onNodeWithTag("font-size").assertDoesNotExist()
+        rule.onNodeWithTag("spelling-FLATS").performScrollTo().performClick(); rule.onNodeWithTag("settings-spelling-example").performScrollTo()
         rule.onAllNodesWithText("Db",useUnmergedTree=true).onFirst().assertExists(); shot("06-settings-flat-preview")
-        category("Chord labels"); rule.onNodeWithTag("label-ROMAN").performClick()
+        rule.onNodeWithTag("label-ROMAN").performScrollTo().performClick()
         rule.onNodeWithTag("settings-live-example").performScrollTo(); shot("07-settings-roman-preview")
         category("Appearance"); rule.onNodeWithTag("label-ROMAN").assertDoesNotExist(); rule.onNodeWithTag("theme-DARK").performClick(); shot("08-settings-dark")
         rule.activityRule.scenario.recreate(); await("Make it yours.")
@@ -105,8 +106,7 @@ class RefinementUiTest {
         // Legacy lyrics-only preference is intentionally ignored: instrumental chords are still visible.
         rule.onNodeWithText("Intro").assertExists()
         rule.onAllNodesWithContentDescription("Chord C. Sounding C").onFirst().assertExists(); shot("09-reader-section-colors-light")
-        rule.onNodeWithText("More").performClick(); rule.onNodeWithText("Capo").assertDoesNotExist(); rule.onNodeWithText("Set key / mode").assertDoesNotExist()
-        rule.onNodeWithText("More").performClick()
+        rule.onNodeWithText("More").assertDoesNotExist(); rule.onNodeWithText("Capo").assertDoesNotExist(); rule.onNodeWithText("Set key / mode").assertDoesNotExist()
         rule.onNodeWithContentDescription("Chord C13. Sounding C13").performScrollTo().performClick()
         rule.onNodeWithTag("voiced-notes").assertTextEquals("C4  E4  G4  Bb4  D5  F5  A5")
         rule.onNodeWithText("1st inversion").assertDoesNotExist(); rule.onNodeWithText("Piano").assertDoesNotExist(); rule.onNodeWithText("Guitar").assertDoesNotExist(); shot("10-full-piano-chord")

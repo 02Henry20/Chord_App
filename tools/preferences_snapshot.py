@@ -27,7 +27,8 @@ def decode(path):
     return result
 def logical(values):
     return dict(version=1,theme=values.get('theme','DARK' if values.get('dark',0) else 'LIGHT'),instrument=values.get('instrument','Piano'),fontSize=values.get('fontSize',19),keepAwake=bool(values.get('keepAwake',1)),
-                chordLabels=values.get('chordLabels','ROMAN' if values.get('roman',0) else 'SYMBOLS'),spelling=values.get('spelling','AUTO'),scrollSpeed=values.get('scrollSpeed',22.0),leadIn=values.get('leadIn',0),lineSpacing=values.get('lineSpacing',1.35),chordColor=values.get('chordColor','Theme'),sheetDisplay=values.get('sheetDisplay','BOTH'))
+                chordLabels=values.get('chordLabels','ROMAN' if values.get('roman',0) else 'SYMBOLS'),spelling=values.get('spelling','AUTO'),scrollSpeed=values.get('scrollSpeed',22.0),leadIn=values.get('leadIn',0),lineSpacing=values.get('lineSpacing',1.35),chordColor=values.get('chordColor','Theme'),sheetDisplay=values.get('sheetDisplay','BOTH'),
+                sheetMargin=values.get('sheetMargin',16.0),songLineGap=values.get('songLineGap',6.0),chordLineGap=values.get('chordLineGap',2.0),sectionGap=values.get('sectionGap',12.0))
 if __name__=='__main__':
     p=argparse.ArgumentParser(); p.add_argument('source',type=Path); p.add_argument('destination',type=Path); a=p.parse_args()
     a.destination.write_text(json.dumps(logical(decode(a.source)),indent=2),encoding='utf-8')

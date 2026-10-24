@@ -25,7 +25,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
-fun ChordDialog(chord: String, key: KeyContext?, instrument: String, capo: Int, dismiss: () -> Unit) {
+fun ChordDialog(chord: String, key: KeyContext?, instrument: String, dismiss: () -> Unit) {
     val parsed = remember(chord) { ChordParser.parse(chord) }
     val maxHeight = with(LocalDensity.current) { (LocalWindowInfo.current.containerSize.height * .85f).toDp() }
     Dialog(dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -40,7 +40,7 @@ fun ChordDialog(chord: String, key: KeyContext?, instrument: String, capo: Int, 
                     else {
                         Text("Chord tones · ${parsed.notes.joinToString("  ") { it.name }}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(vertical = 10.dp))
                         if (parsed.bass != null) Text("Slash bass · ${parsed.bass.name} is the lowest note", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-                        if (instrument == "Piano") PianoDetails(parsed) else GuitarDetails(parsed, capo)
+                    if (instrument == "Piano") PianoDetails(parsed) else GuitarDetails(parsed)
                     }
                 }
                 TextButton(dismiss, Modifier.fillMaxWidth()) { Text("Done") }
@@ -92,12 +92,8 @@ fun PianoKeyboard(chord: ParsedChord, voicing: PianoVoicing) {
 }
 
 @Composable
-private fun GuitarDetails(chord: ParsedChord, capo: Int) {
-    // Capo changes shape only: both displayed and sounding pitches stay at the selected concert key.
-    val shapeText = Theory.transpose(chord.raw, -capo)
-    val shapeChord = remember(shapeText) { ChordParser.parse(shapeText)!! }
-    val voicings = remember(shapeChord) { GuitarVoicings.forChord(shapeChord) }
-    if (capo > 0) Text("Capo $capo · $shapeText",fontSize=12.sp)
+private fun GuitarDetails(chord: ParsedChord) {
+    val voicings = remember(chord) { GuitarVoicings.forChord(chord) }
     if (voicings.isEmpty()) { Text("Guitar diagram unavailable for this chord.", fontSize = 13.sp, modifier = Modifier.padding(vertical = 18.dp)); return }
     val voicing = voicings.first()
     GuitarDiagram(voicing)

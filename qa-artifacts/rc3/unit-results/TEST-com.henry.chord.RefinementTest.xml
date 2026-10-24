@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.RefinementTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-24T10:30:31.192Z" hostname="HENRY-COMPUTER" time="0.072">
+  <properties/>
+  <testcase name="allChildrenOfManifestMustValidateBeforeImport" classname="com.henry.chord.RefinementTest" time="0.021"/>
+  <testcase name="sectionColorFamiliesRemainConsistentAndDistinct" classname="com.henry.chord.RefinementTest" time="0.0"/>
+  <testcase name="validatesNativeTypesUnknownFieldsAndRequiredFields" classname="com.henry.chord.RefinementTest" time="0.014"/>
+  <testcase name="pianoAlwaysShowsFullRootPositionIncludingExtensionsAndSlashBass" classname="com.henry.chord.RefinementTest" time="0.002"/>
+  <testcase name="strictChordProCatchesMalformedMarkersAndMetadata" classname="com.henry.chord.RefinementTest" time="0.002"/>
+  <testcase name="downloadableGuideContainsAnActuallyValidCompleteExample" classname="com.henry.chord.RefinementTest" time="0.014"/>
+  <testcase name="validatesLinksAssetPathsAndArrangementFields" classname="com.henry.chord.RefinementTest" time="0.005"/>
+  <testcase name="catchesPreciseChordAndDuplicateIdPaths" classname="com.henry.chord.RefinementTest" time="0.002"/>
+  <testcase name="chordOnlyRowsAndExactUnicodeRemainValid" classname="com.henry.chord.RefinementTest" time="0.005"/>
+  <testcase name="strictJsonRejectsLenientSyntaxAndReportsLocation" classname="com.henry.chord.RefinementTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

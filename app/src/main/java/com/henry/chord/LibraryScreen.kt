@@ -1,6 +1,7 @@
 package com.henry.chord
 
 import androidx.compose.foundation.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,8 +36,12 @@ fun Song.displayKey(spelling: Spelling = Spelling.AUTO): String = originalKeyLab
 fun Song.tags(): List<String> = runCatching { org.json.JSONArray(tagsJson).let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList())
 
 @Composable
-fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: (() -> Unit)? = null, number: String? = null, query: String = "", excerpt: String? = null, spelling: Spelling = Spelling.AUTO) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 9.dp).testTag("song-${song.id}"), verticalAlignment = Alignment.CenterVertically) {
+@OptIn(ExperimentalFoundationApi::class)
+fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: (() -> Unit)? = null, number: String? = null, query: String = "", excerpt: String? = null, spelling: Spelling = Spelling.AUTO,
+    onLongClick: (() -> Unit)? = null, selectionMode: Boolean = false, selected: Boolean = false) {
+    val action = if (onLongClick == null) Modifier.clickable(onClick=onOpen) else Modifier.combinedClickable(onClick=onOpen,onLongClick=onLongClick,onLongClickLabel="Select song")
+    Row(Modifier.fillMaxWidth().then(action).background(if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha=.45f) else androidx.compose.ui.graphics.Color.Transparent).padding(vertical = 9.dp).testTag("song-${song.id}").semantics { if (selectionMode) stateDescription=if (selected) "Selected" else "Not selected" }, verticalAlignment = Alignment.CenterVertically) {
+        if (selectionMode) Checkbox(selected,{ onOpen() },Modifier.testTag("select-${song.id}"))
         SongArtwork(song, Modifier.size(52.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -52,7 +57,7 @@ fun SongRow(song: Song, onOpen: () -> Unit, onFavorite: (() -> Unit)? = null, nu
                 }, fontSize = 12.sp, lineHeight = 18.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp).testTag("lyric-${song.id}"))
             }
         }
-        if (onFavorite != null) IconToggleButton(song.favorite, { onFavorite() }, Modifier.testTag("favorite-${song.id}")) { Icon(if (song.favorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder, "Favorite ${song.title}", tint = if (song.favorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp)) }
+        if (onFavorite != null && !selectionMode) IconToggleButton(song.favorite, { onFavorite() }, Modifier.testTag("favorite-${song.id}")) { Icon(if (song.favorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder, "Favorite ${song.title}", tint = if (song.favorite) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp)) }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
 }
@@ -63,6 +68,10 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
     var tab by rememberSaveable { mutableStateOf("All songs") }; var sort by rememberSaveable { mutableStateOf(LibrarySort.TITLE) }
     var artist by rememberSaveable { mutableStateOf("") }; var tag by rememberSaveable { mutableStateOf("") }; var key by rememberSaveable { mutableStateOf("") }
     var options by remember { mutableStateOf(false) }; var limit by rememberSaveable { mutableIntStateOf(100) }
+    var selected by rememberSaveable { mutableStateOf(emptyList<Long>()) }
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }; var busy by remember { mutableStateOf(false) }; var actionError by remember { mutableStateOf("") }
+    var selectionEpoch by remember { mutableIntStateOf(0) }
     val list = rememberLazyListState(); val scope = rememberCoroutineScope()
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
@@ -70,6 +79,19 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
     LaunchedEffect(query) { if (settled != query) { delay(160); settled = query; reset() } }
     val filter = LibraryFilter(tab == "Favorites", artist, tag, key, tab == "Recent")
     val activeSort = if (tab == "Recent" && sort == LibrarySort.TITLE) LibrarySort.OPENED else sort
+    val selectionContext=org.json.JSONArray(listOf(query,tab,artist,tag,key)).toString()
+    var previousSelectionContext by rememberSaveable { mutableStateOf(selectionContext) }
+    LaunchedEffect(selectionContext) { if (previousSelectionContext!=selectionContext) { selectionEpoch++; selected=emptyList(); selectionMode=false; previousSelectionContext=selectionContext } }
+    BackHandler(selectionMode && !busy) { selected=emptyList(); selectionMode=false }
+    fun toggle(id: Long) { if (!busy) { keyboard?.hide(); focus.clearFocus(); selectionMode=true; selected=if (id in selected) selected-id else selected+id } }
+    fun bulk(favorites: Boolean? = null) {
+        val ids=selected.toList(); busy=true; actionError=""
+        scope.launch {
+            try { if (favorites==null) dao.deleteSelected(ids) else dao.favoriteSelected(ids,favorites); selected=emptyList(); selectionMode=false }
+            catch (e: Exception) { actionError=e.message ?: "Could not update the selected songs." }
+            finally { busy=false }
+        }
+    }
     val page by remember(settled, filter, activeSort, limit) { dao.libraryResults(LibrarySearch.query(settled, filter, activeSort, limit)).map<List<LibraryHit>, List<LibraryHit>?> { it } }.collectAsState(null, context = Dispatchers.Main.immediate)
     val results = page.orEmpty()
     val count by remember(settled, filter) { dao.libraryResultCount(LibrarySearch.query(settled, filter, activeSort, count = true)) }.collectAsState(0, context = Dispatchers.Main.immediate)
@@ -94,6 +116,20 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
             listOf("All songs", "Favorites", "Recent").forEach { value -> FilterChip(tab == value, { tab = value; reset() }, { Text(value, fontSize = 12.sp) }) }
             IconButton({ options = true }, Modifier.testTag("library-options")) { Icon(Icons.Outlined.Tune, "Sort and filter library") }
         }
+        if (selectionMode) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                IconButton({ selected=emptyList(); selectionMode=false },enabled=!busy) { Icon(Icons.Outlined.Close,"Cancel selection") }
+                Text("${selected.size} selected",Modifier.weight(1f),fontWeight=FontWeight.Bold)
+                TextButton({ val epoch=selectionEpoch; busy=true; scope.launch { try { val ids=dao.matchingLibraryIds(LibrarySearch.query(settled,filter,activeSort,idsOnly=true)); if (epoch==selectionEpoch) selected=ids } catch (e: Exception) { actionError=e.message.orEmpty() } finally { busy=false } } },enabled=!busy) { Text("Select all $count") }
+            }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                TextButton({ bulk(true) },enabled=selected.isNotEmpty() && !busy) { Icon(Icons.Outlined.FavoriteBorder,null); Spacer(Modifier.width(6.dp)); Text("Favorite") }
+                TextButton({ bulk(false) },enabled=selected.isNotEmpty() && !busy) { Text("Unfavorite") }
+                TextButton({ confirmDelete=true },enabled=selected.isNotEmpty() && !busy) { Icon(Icons.Outlined.DeleteOutline,null); Spacer(Modifier.width(6.dp)); Text("Delete") }
+            }
+        }
+        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (actionError.isNotEmpty()) Text(actionError,color=MaterialTheme.colorScheme.error)
         val countLabel = if (page == null) "Loading local songs…" else "$count " + (if (settled.isBlank()) { if (count == 1) "song" else "songs" } else { if (count == 1) "match · Best matches first" else "matches · Best matches first" }) + if (artist.isNotEmpty() || tag.isNotEmpty() || key.isNotEmpty()) " · Filtered" else ""
         Text(countLabel, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp).testTag("result-count").semantics { stateDescription = settled })
         // Do not measure an empty list before Room emits: it would discard the restored scroll anchor.
@@ -104,7 +140,8 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
                     val text = if (hit.lyricsMatch) withContext(Dispatchers.IO) { dao.excerpt(hit.song.id, SearchText.terms(settled).firstOrNull()?.take(64).orEmpty()) } else null
                     withContext(Dispatchers.Main.immediate) { value = text }
                 }
-                SongRow(hit.song, { open(hit.song) }, { favorite(hit.song) }, query = settled, excerpt = preview, spelling = prefs.spelling)
+                SongRow(hit.song, { if (selectionMode) toggle(hit.song.id) else open(hit.song) }, { favorite(hit.song) }, query = settled, excerpt = preview, spelling = prefs.spelling,
+                    onLongClick={ toggle(hit.song.id) },selectionMode=selectionMode,selected=hit.song.id in selected)
             }
             if (count == 0 && query == settled) item {
                 EmptyState(if (query.isNotEmpty()) "No matches yet" else if (tab == "Favorites") "Save your favorites" else if (tab == "Recent") "A fresh start" else "Make this library yours", if (query.isNotEmpty()) "Try a shorter phrase, artist, album or tag." else if (tab == "Favorites") "Tap a heart beside any song. Your favorites stay on this device." else if (tab == "Recent") "Songs you open will appear here." else "Import a folder of songs or write your first chord sheet.", if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) "Show all songs" else "Write a song", { if (query.isNotEmpty() || tab != "All songs" || filter != LibraryFilter()) { query = ""; tab = "All songs"; artist = ""; tag = ""; key = ""; reset() } else add() })
@@ -113,6 +150,8 @@ fun LibraryScreen(dao: ChordDao, all: List<Song>, prefs: Preferences, open: (Son
         }
     }
     if (options) LibraryOptions(all, sort, artist, tag, key, { options = false }) { s, a, t, k -> sort = s; artist = a; tag = t; key = k; options = false; reset() }
+    if (confirmDelete) AlertDialog(onDismissRequest={ confirmDelete=false },title={ Text("Delete ${selected.size} selected arrangements?") },text={ Text("This removes the selected local versions and their notes/history when no other version remains. Other versions stay in your library. This cannot be undone; export a backup first if needed.") },
+        confirmButton={ TextButton({ confirmDelete=false; bulk() }) { Text("Delete selected",color=MaterialTheme.colorScheme.error) } },dismissButton={ TextButton({ confirmDelete=false }) { Text("Cancel") } })
 }
 
 @OptIn(ExperimentalLayoutApi::class)

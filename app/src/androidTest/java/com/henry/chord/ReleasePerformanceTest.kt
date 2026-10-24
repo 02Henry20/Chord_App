@@ -39,7 +39,7 @@ class ReleasePerformanceTest {
     private fun distance(a: Pair<Int,Int>,b: Pair<Int,Int>) = (b.first-a.first)*10000+b.second-a.second
     private fun slider(fraction: Float) {
         val seek=device.wait(Until.findObject(By.clazz("android.widget.SeekBar")),5000) ?: error("Speed slider missing")
-        val r=seek.visibleBounds; device.click((r.left+r.width()*fraction).toInt(),r.centerY()); Thread.sleep(250)
+        val r=seek.visibleBounds; device.click((r.left+r.width()*fraction).toInt(),r.centerY()); Thread.sleep(650)
     }
     @Test fun actualScrollSpeedManualPauseFullscreenAndChordSheet(): Unit = runBlocking {
         val db=Room.databaseBuilder(context,ChordDatabase::class.java,"chord.db").addMigrations(MIGRATION_1_2,MIGRATION_2_3,MIGRATION_3_4).build()
@@ -71,6 +71,11 @@ class ReleasePerformanceTest {
             val fastStart=position(); click("Start auto-scroll",true); Thread.sleep(1100); click("Pause auto-scroll",true); val fast=position()
             assertTrue("Slow speed moves",distance(before,slow)>10)
             assertTrue("Speed control changes actual motion",distance(fastStart,fast)>distance(before,slow)*3)
+            click("Start auto-scroll",true)
+            val liveBefore=position(); slider(.45f)
+            assertTrue("Changing speed must leave scrolling active",device.hasObject(By.desc("Pause auto-scroll")))
+            Thread.sleep(700); assertTrue("Motion continues at adjusted speed",distance(liveBefore,position())>0)
+            click("Pause auto-scroll",true)
             click("Start auto-scroll",true)
             val sheet=device.wait(Until.findObject(By.desc("Song sheet")),5000)!!.visibleBounds
             device.swipe(sheet.centerX(),sheet.bottom-80,sheet.centerX(),sheet.top+100,25)

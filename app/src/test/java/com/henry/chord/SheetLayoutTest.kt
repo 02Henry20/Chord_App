@@ -5,6 +5,24 @@ import org.junit.Test
 
 class SheetLayoutTest {
     private fun line() = SheetLine("line",listOf(TextSegment("s0","Un"),TextSegment("s1","der the ",ChordAnchor("a","F#m7b5")),TextSegment("s2","évening 日本 👩‍🎤",ChordAnchor("b","C/E"))))
+    @Test fun scrollRemeasureReusesWrapAndWidthChangeKeepsExactAnchors() {
+        val line=line(); val text=line.lyric; val anchors=SheetLayout.anchors(line)
+        val cache=SheetRowCache(); var textMeasures=0
+        fun rows(width: Int)=cache.atWidth(width) {
+            SheetLayout.wrap(text,anchors,width.toFloat(),{ textMeasures++; it.codePointCount(0,it.length).toFloat() },{ 7f })
+        }
+        val wide=rows(28); val first=textMeasures
+        assertTrue(first>0)
+        repeat(300) { assertEquals(wide,rows(28)) }
+        assertEquals("Scrolling must not reshape prefixes or recalculate wrap",first,textMeasures)
+        val narrow=rows(10)
+        assertTrue(textMeasures>first)
+        assertNotEquals(wide,narrow)
+        assertEquals(text,narrow.joinToString("") { text.substring(it.start,it.end) })
+        assertEquals(anchors,narrow.flatMap { it.anchors })
+        assertTrue(narrow.all { it.start in SheetLayout.boundaries(text) && it.end in SheetLayout.boundaries(text) })
+        assertEquals(wide,rows(28))
+    }
     @Test fun wrapsWithoutAddingWhitespaceOrSplittingAccentedCharacters() {
         val line=line(); val text=line.lyric
         val rows=SheetLayout.wrap(text,SheetLayout.anchors(line),12f,{ it.codePointCount(0,it.length).toFloat() },{ 7f })
@@ -47,8 +65,18 @@ class SheetLayoutTest {
         assertEquals(ids.size,ids.toSet().size)
     }
     @Test fun settingsRoundTripIncludesPerformancePreferences() {
-        val p=Preferences(theme=ThemeMode.DARK,dark=true,instrument="Piano",fontSize=24,scrollSpeed=61f,leadIn=3,lineSpacing=1.6f,chordColor="Amber",sheetDisplay=SheetDisplay.LYRICS,chordLabels=LabelMode.BOTH)
+        val p=Preferences(theme=ThemeMode.DARK,dark=true,instrument="Piano",fontSize=24,scrollSpeed=61f,leadIn=3,lineSpacing=1.6f,chordColor="Amber",sheetDisplay=SheetDisplay.LYRICS,chordLabels=LabelMode.BOTH,sheetMargin=28f,songLineGap=14f,chordLineGap=5f,sectionGap=21f)
         assertEquals(p,PreferenceFormat.decode(PreferenceFormat.encode(p)))
+    }
+    @Test fun oldBackupSettingsGainCompactMarginsWithoutLosingPreferences() {
+        val old=PreferenceFormat.encode(Preferences(fontSize=23))
+        listOf("sheetMargin","songLineGap","chordLineGap","sectionGap").forEach { old.remove(it) }
+        assertEquals(Preferences(fontSize=23),PreferenceFormat.decode(old))
+    }
+    @Test fun backupMarginsRejectInvalidValues() {
+        listOf("sheetMargin" to -1,"songLineGap" to 25,"chordLineGap" to 13,"sectionGap" to 33).forEach { (key,value) ->
+            try { PreferenceFormat.decode(PreferenceFormat.encode(Preferences()).put(key,value)); fail("Accepted $key") } catch (_: IllegalArgumentException) { }
+        }
     }
     @Test fun emojiSequencesAreSingleEditingUnits() {
         assertEquals(listOf(0,7),SheetLayout.boundaries("👩🏽‍🎤"))

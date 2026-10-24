@@ -58,9 +58,9 @@ class ReleaseEditorTest {
             rule.onNodeWithContentDescription("Cancel editing").performScrollTo().performClick(); await("Discard unsaved changes?"); rule.onNodeWithText("Discard changes").performClick(); await("KEY G")
             assertEquals(name,runBlocking { dao.song(id)!!.title })
             rule.onNodeWithContentDescription("Back").performClick(); rule.onNodeWithText("Settings").performClick()
-            rule.onNodeWithTag("category-Chord labels").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().performClick()
+            rule.onNodeWithTag("category-Chords & instrument").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().performClick()
             rule.onNodeWithTag("category-Appearance").performScrollTo().performClick(); rule.onNodeWithTag("theme-DARK").performScrollTo().performClick(); shot("15-settings-dark")
-            rule.onNodeWithTag("category-Backup & restore").performScrollTo().performClick()
+            rule.onNodeWithTag("category-Library & backup").performScrollTo().performClick()
             rule.onNodeWithText("Export full backup ZIP").performScrollTo().performClick()
             val roots=device.findObject(UiSelector().description("Show roots")); check(roots.waitForExists(10000)); roots.click(); native("sdk_gphone_x86").click(); native("Documents").click()
             val filename=device.findObject(UiSelector().resourceId("android:id/title").className("android.widget.EditText"))
@@ -78,7 +78,7 @@ class ReleaseEditorTest {
             rule.onNodeWithText("Merge into this library").performClick(); rule.onNodeWithText("Restore backup").performClick()
             rule.waitUntil(45000) { rule.onAllNodesWithText("Restored ",substring=true).fetchSemanticsNodes().isNotEmpty() }
             assertEquals(LabelMode.ROMAN,runBlocking { Settings(context).flow.first().chordLabels }); assertEquals(before+1,runBlocking { dao.count() }); assertTrue(runBlocking { dao.song(id)!!.favorite })
-            rule.activityRule.scenario.recreate(); await("Make it yours."); rule.onNodeWithTag("category-Chord labels").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().assertExists(); shot("18-settings-restored-dark")
+            rule.activityRule.scenario.recreate(); await("Make it yours."); rule.onNodeWithTag("category-Chords & instrument").performScrollTo().performClick(); rule.onNodeWithTag("label-ROMAN").performScrollTo().assertExists(); shot("18-settings-restored-dark")
             rule.onNodeWithText("Library").performClick(); rule.onNodeWithTag("library-search").performTextReplacement(name)
             rule.waitUntil(10000) { rule.onAllNodesWithTag("song-$id").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithTag("song-$id").performClick(); rule.onNodeWithContentDescription("Edit song").performClick(); shot("20-editor-dark")

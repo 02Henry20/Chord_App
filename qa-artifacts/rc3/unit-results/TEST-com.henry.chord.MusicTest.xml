@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.MusicTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T10:30:31.176Z" hostname="HENRY-COMPUTER" time="0.014">
+  <properties/>
+  <testcase name="rejectsEmptyImport" classname="com.henry.chord.MusicTest" time="0.001"/>
+  <testcase name="searchEscapesFtsOperatorsAndPunctuation" classname="com.henry.chord.MusicTest" time="0.0"/>
+  <testcase name="rejectsBinaryImport" classname="com.henry.chord.MusicTest" time="0.0"/>
+  <testcase name="transposesRootsSuffixesAndSlashBass" classname="com.henry.chord.MusicTest" time="0.004"/>
+  <testcase name="parsesMetadataAndRoundTripsOriginalMaterial" classname="com.henry.chord.MusicTest" time="0.006"/>
+  <testcase name="chordTonesAreMusicallyCorrect" classname="com.henry.chord.MusicTest" time="0.001"/>
+  <testcase name="romanDegreesRetainQualityAndBass" classname="com.henry.chord.MusicTest" time="0.0"/>
+  <testcase name="chordProExportKeepsExplicitMinorModeAndCanonicalKey" classname="com.henry.chord.MusicTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -6,6 +6,16 @@ import java.util.Locale
 data class PositionedAnchor(val offset: Int, val anchor: ChordAnchor)
 data class SheetRow(val start: Int, val end: Int, val anchors: List<PositionedAnchor>)
 
+/** One width per composed line: scrolling remeasures without changing its wrapping inputs. */
+internal class SheetRowCache {
+    private var width = -1
+    private var rows: List<SheetRow>? = null
+    fun atWidth(width: Int, calculate: () -> List<SheetRow>): List<SheetRow> {
+        if (this.width == width) rows?.let { return it }
+        return calculate().also { this.width = width; rows = it }
+    }
+}
+
 /** UTF-16 offsets only at grapheme boundaries. The source text is never padded or trimmed. */
 object SheetLayout {
     fun anchors(line: SheetLine): List<PositionedAnchor> {

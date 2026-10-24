@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.TheoryTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-24T10:30:31.299Z" hostname="HENRY-COMPUTER" time="0.114">
+  <properties/>
+  <testcase name="majorAndMinorTonalCenters" classname="com.henry.chord.TheoryTest" time="0.001"/>
+  <testcase name="requiredGrammarAndAccurateToneSpelling" classname="com.henry.chord.TheoryTest" time="0.001"/>
+  <testcase name="spellingDistinguishesEnharmonicFunctions" classname="com.henry.chord.TheoryTest" time="0.0"/>
+  <testcase name="unknownModeAndKeyNeverInventDegrees" classname="com.henry.chord.TheoryTest" time="0.001"/>
+  <testcase name="voicingsContainActualNotesAndRespectBass" classname="com.henry.chord.TheoryTest" time="0.001"/>
+  <testcase name="simultaneousTranspositionPreservesDegreesAndRawData" classname="com.henry.chord.TheoryTest" time="0.106"/>
+  <testcase name="qualitiesExtensionsAndBassConvention" classname="com.henry.chord.TheoryTest" time="0.001"/>
+  <testcase name="legacyPreferencesMigrateWithoutLosingChoice" classname="com.henry.chord.TheoryTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

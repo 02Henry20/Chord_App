@@ -1,0 +1,10 @@
+{
+  "before": "(1, 16)",
+  "slow": "(1, 49)",
+  "fastStart": "(1, 49)",
+  "fast": "(4, 55)",
+  "manualPause": true,
+  "backgroundPause": true,
+  "chordPause": true,
+  "stopsAtBottom": true
+}

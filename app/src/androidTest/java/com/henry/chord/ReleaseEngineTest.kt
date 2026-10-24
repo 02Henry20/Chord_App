@@ -60,7 +60,7 @@ class ReleaseEngineTest {
             a.dao().saveOffsets(ArrangementUserState(id,2,1)); a.dao().saveOffsets(ArrangementUserState(second,-2,0))
             val set=a.dao().insertSetlist(Setlist(name="Encore")); val first=SetlistEntry(set,id,0,transposeOverride=-3,notes="Soft intro"); val repeat=SetlistEntry(set,id,1,transposeOverride=4,notes="Repeat")
             a.dao().addEntry(first); a.dao().addEntry(repeat); a.dao().reorder(listOf(repeat,first))
-            val prefs=Preferences(chordLabels=LabelMode.ROMAN,scrollSpeed=73f,leadIn=3,lineSpacing=1.7f,chordColor="Blue")
+            val prefs=Preferences(chordLabels=LabelMode.ROMAN,scrollSpeed=73f,leadIn=3,lineSpacing=1.7f,chordColor="Blue",sheetMargin=29f,songLineGap=17f,chordLineGap=8f,sectionGap=23f)
             val zip=File(source.cacheDir,"backup.zip"); BackupManager(source,a).write(zip,prefs)
             val manager=BackupManager(target,b); val preview=manager.stage(Uri.fromFile(zip)); assertEquals(1,preview.songs); assertEquals(2,preview.versions); assertEquals(1,preview.covers); assertEquals(1,preview.sets)
             assertEquals(prefs,PreferenceFormat.decode(preview.manifest.getJSONObject("settings")))

@@ -22,10 +22,15 @@ enum class LibrarySort(val title: String) { TITLE("Title"), ARTIST("Artist / tit
 data class LibraryFilter(val favorite: Boolean = false, val artist: String = "", val tag: String = "", val key: String = "", val recent: Boolean = false)
 
 object SearchText {
+    // Highlighting folds every grapheme; reuse patterns instead of compiling three per character.
+    private val combiningMarks = Regex("\\p{M}+")
+    private val apostrophes = Regex("['’ʼ]")
+    private val nonLettersOrNumbers = Regex("[^\\p{L}\\p{N}]+")
+    private val repeatedSpaces = Regex(" +")
     private fun fold(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFKD).lowercase(Locale.ROOT)
-        .replace(Regex("\\p{M}+"), "").replace("ß", "ss").replace("æ", "ae").replace("œ", "oe").replace("ø", "o").replace("ł", "l").replace("đ", "d")
-        .replace(Regex("['’ʼ]"), "").replace(Regex("[^\\p{L}\\p{N}]+"), " ")
-    fun normalize(text: String): String = fold(text).trim().replace(Regex(" +"), " ")
+        .replace(combiningMarks, "").replace("ß", "ss").replace("æ", "ae").replace("œ", "oe").replace("ø", "o").replace("ł", "l").replace("đ", "d")
+        .replace(apostrophes, "").replace(nonLettersOrNumbers, " ")
+    fun normalize(text: String): String = fold(text).trim().replace(repeatedSpaces, " ")
     fun terms(text: String) = normalize(text).split(' ').filter { it.isNotEmpty() }
     private fun gram(text: String) = "g" + text.codePoints().toArray().joinToString("z") { it.toString(16) }
     /** ASCII-encoded Unicode n-grams use ordinary FTS4 tokens, including 1/2-character fragments. */
@@ -84,7 +89,7 @@ object LibrarySearch {
     }
     fun excerpts(id: Long, lyrics: String) = SearchText.chunks(lyrics).mapIndexed { i, text -> LibraryExcerpt("$id:$i", id, i, text, SearchText.normalize(text)) }
     fun grams(index: LibraryIndex) = LibraryGrams(index.id, SearchText.grams(listOf(index.titleNorm, index.artistNorm, index.albumNorm, index.tagsNorm, index.lyricsNorm).joinToString(" ")))
-    fun query(query: String, filter: LibraryFilter, sort: LibrarySort, limit: Int = 100, count: Boolean = false): SimpleSQLiteQuery {
+    fun query(query: String, filter: LibraryFilter, sort: LibrarySort, limit: Int = 100, count: Boolean = false, idsOnly: Boolean = false): SimpleSQLiteQuery {
         val normalized = SearchText.normalize(query)
         val terms = SearchText.terms(query)
         val args = mutableListOf<Any>()
@@ -102,6 +107,7 @@ object LibrarySearch {
         if (filter.key.isNotEmpty()) { where += "m.originalKey=?"; args += filter.key }
         if (where.isNotEmpty()) from.append(" WHERE " + where.joinToString(" AND "))
         if (count) return SimpleSQLiteQuery("SELECT count(*)$from", args.toTypedArray())
+        if (idsOnly) return SimpleSQLiteQuery("SELECT a.id$from ORDER BY a.id",args.toTypedArray())
         val select = "SELECT a.id,c.title,c.artist,COALESCE(a.originalKey,'') AS `key`,'' AS body,u.favorite,'' AS notes,p.transpose,p.capo,u.lastOpened,'' AS source,a.songUuid,a.arrangementUuid,'' AS documentJson,a.artworkPath,a.name AS arrangementName,m.album,m.year,m.tagsJson,m.tonalMode,m.tempoBpm,m.addedAt," + if (terms.isEmpty()) "0 AS lyricsMatch" else "instr(m.lyricsNorm,?)>0 AS lyricsMatch"
         if (terms.isNotEmpty()) args.add(0, terms.first())
         val rank = if (terms.isEmpty()) "" else {

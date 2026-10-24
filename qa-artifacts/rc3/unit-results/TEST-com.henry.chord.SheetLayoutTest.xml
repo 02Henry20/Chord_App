@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.henry.chord.SheetLayoutTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-24T10:30:31.270Z" hostname="HENRY-COMPUTER" time="0.026">
+  <properties/>
+  <testcase name="crlfAndTerminalChordNeverClipOrCrash" classname="com.henry.chord.SheetLayoutTest" time="0.002"/>
+  <testcase name="backupMarginsRejectInvalidValues" classname="com.henry.chord.SheetLayoutTest" time="0.005"/>
+  <testcase name="colorfulThemesHaveReadableTextAndChordAccents" classname="com.henry.chord.SheetLayoutTest" time="0.004"/>
+  <testcase name="editsRelocateAnchorsAndKeepTheirIdentity" classname="com.henry.chord.SheetLayoutTest" time="0.002"/>
+  <testcase name="settingsRoundTripIncludesPerformancePreferences" classname="com.henry.chord.SheetLayoutTest" time="0.0"/>
+  <testcase name="editorReturnCreatesStableSeparateLinesAndAnchors" classname="com.henry.chord.SheetLayoutTest" time="0.0"/>
+  <testcase name="adjacentAndChordOnlyAnchorsSurvive" classname="com.henry.chord.SheetLayoutTest" time="0.002"/>
+  <testcase name="explicitNewlinesAndBlankLinesHaveIndependentRows" classname="com.henry.chord.SheetLayoutTest" time="0.001"/>
+  <testcase name="emojiSequencesAreSingleEditingUnits" classname="com.henry.chord.SheetLayoutTest" time="0.0"/>
+  <testcase name="oldBackupSettingsGainCompactMarginsWithoutLosingPreferences" classname="com.henry.chord.SheetLayoutTest" time="0.001"/>
+  <testcase name="wrapsWithoutAddingWhitespaceOrSplittingAccentedCharacters" classname="com.henry.chord.SheetLayoutTest" time="0.002"/>
+  <testcase name="scrollRemeasureReusesWrapAndWidthChangeKeepsExactAnchors" classname="com.henry.chord.SheetLayoutTest" time="0.005"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

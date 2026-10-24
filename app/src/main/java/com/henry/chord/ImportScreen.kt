@@ -46,7 +46,7 @@ fun ImportScreen(dao: ChordDao, library: () -> Unit) {
         item {
             PageTitle("Bring your songs.", "")
             if (session == null && !ui.busy) {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(24.dp)) { Icon(Icons.Outlined.LibraryAdd, null, Modifier.size(34.dp)); Spacer(Modifier.height(20.dp)); Text("A whole collection.\nOne local home.", fontFamily = Serif, fontSize = 29.sp); Spacer(Modifier.height(12.dp)); Text("Choose files, a recursive folder or a ZIP. Preview every song and resolve duplicates before anything is saved.", fontSize = 14.sp, lineHeight = 22.sp) } }
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(24.dp)) { Icon(Icons.Outlined.LibraryAdd, null, Modifier.size(34.dp)); Spacer(Modifier.height(20.dp)); Text("A whole collection.\nOne local home.", fontFamily = Serif, fontSize = 29.sp, lineHeight = 39.sp); Spacer(Modifier.height(12.dp)); Text("Choose files, a recursive folder or a ZIP. Preview every song and resolve duplicates before anything is saved.", fontSize = 14.sp, lineHeight = 22.sp) } }
                 Spacer(Modifier.height(20.dp))
                 Button({ documents.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.UploadFile, null); Spacer(Modifier.width(8.dp)); Text("Choose files or ZIP") }
                 Spacer(Modifier.height(12.dp))

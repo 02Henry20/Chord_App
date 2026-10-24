@@ -6,6 +6,8 @@ A native, offline Android songbook built with Kotlin, Compose, Material 3 and Ro
 
 Native measured chord/lyric alignment, colored section groups and instrumental rows; Symbols/Roman/Both labels configured in Settings; non-destructive transpose; full root-position piano chords or one validated guitar diagram; timed performance scrolling; structured song editing; full ZIP backup/restore; and colorful light/dark/system palettes. Home offers a random song and shuffle button. Settings open one category at a time with live typography, chord-label and spelling previews. The launcher uses the owner's supplied purple artwork with adaptive/themed icon resources.
 
+**1.0.0-rc3:** long-press a library row to select versions, select every matching result (including unloaded pages), favorite/unfavorite or delete with confirmation. Home's shuffle refreshes both the artwork card and random collection. Settings have five icon categories. The compact chord sheet has adjustable side margins, chord/lyric gaps, line gaps and section gaps with live examples. Speed changes apply every 0.5 seconds while scrolling continues; fullscreen shows the transpose delta. More/capo controls and capo-based guitar shapes are removed; old stored values remain inert for data compatibility.
+
 **1.0.0-rc2 simplifies the interface:** setlists/sessions, reader label toggles, lyrics-only/chords-only modes, section-jump/share/JSON-export menus, inversion selectors and chord-dialog instrument switches have been removed. Existing setlist records remain in the database/backup format for compatibility; they have no active UI. Songs and personal data are preserved. Android safe-drawing insets keep headers below status icons and cutouts.
 
 Read the detailed, copyable **[song import guide (.txt)](docs/SONG-IMPORT-GUIDE.txt)**. New imports are strictly syntax/type/field/chord/asset checked; errors identify the file and field or line. Invalid files cannot be saved. Existing legacy library records remain readable.
@@ -14,7 +16,7 @@ Package: **`com.henry.chord`**. Launcher: **`com.henry.chord/.MainActivity`**. D
 
 Read the [performance/editor/backup format guide](docs/PERFORMANCE-EDITOR-BACKUP.md) and [final acceptance evidence](qa-artifacts/REPORT.md). Earlier phase reports below are historical; the final audit states exactly which checks were rerun and which coverage remains limited.
 
-The [rc2 interface/import verification](qa-artifacts/refinement/REPORT.md) records the latest executed checks and screenshots. The earlier [release audit](qa-artifacts/REPORT.md) is historical rc1 evidence, including rendering-jank and physical Pixel 9/recent-Android/TalkBack coverage limits; it is not an unconditional production sign-off. Phase summaries below describe the architecture/history; the rc2 simplifications above supersede their removed UI features.
+The [rc3 verification](qa-artifacts/rc3/REPORT.md) records the latest executed checks and screenshots. The [rc2 interface/import verification](qa-artifacts/refinement/REPORT.md) and earlier [release audit](qa-artifacts/REPORT.md) are historical evidence. Physical Pixel 9/recent-Android/TalkBack and rendering-performance coverage limits remain; this is not an unconditional production sign-off. Phase summaries below describe the architecture/history; the rc2/rc3 simplifications above supersede removed UI features.
 
 ## Historical Phase 4
 
@@ -98,7 +100,11 @@ Open **Import → Choose files or ZIP** to select one or many UTF-8 native JSON/
 
 For example, a folder can contain `songs/Title/song.json` and `assets/cover.png`; use `artwork.path: "assets/cover.png"` in the JSON. See the [schema and format examples](docs/PHASE2.md). In the reader, use **Edit song** for native section/anchor editing and **Song links** for verified user-provided links or clearly labeled searches.
 
-**Settings → Backup & restore → Export full backup ZIP** saves all versions, artwork, favorites, notes, offsets, history and preferences, including legacy setlist records for compatibility. **Restore full backup** validates and previews the archive. Merge retains existing edits when IDs match; Replace needs an explicit destructive-data acknowledgement. **Import → Export collection** contains portable content/artwork only. For a single song use the reader's ChordPro export button. Native JSON files are also stored inside collection/full-backup archives.
+**Settings → Library & backup → Export full backup ZIP** saves all versions, artwork, favorites, notes, offsets, history and preferences, including legacy setlist records for compatibility. **Restore full backup** validates and previews the archive. Merge retains existing edits when IDs match; Replace needs an explicit destructive-data acknowledgement. **Import → Export collection** contains portable content/artwork only. For a single song use the reader's ChordPro export button. Native JSON files are also stored inside collection/full-backup archives.
+
+Library selection applies to the current search/filter, not just visible rows. Tap a row/checkbox to toggle selection; Back/Close exits selection. Changing the search/filter clears selection. Delete removes selected arrangements; other versions of a song remain. Favorites are shared across versions of the same song. Export a backup before deleting anything you may want back.
+
+Settings categories: **Appearance**, **Song reader**, **Chords & instrument**, **Performance**, **Library & backup**. Reader spacing defaults to 16 dp side margins, 6 dp between source/wrapped lyric rows, 2 dp between chords and lyrics, and 12 dp before sections. The inner colored section inset is 6 dp. Native touch targets expand around visually compact chord text; dense adjacent changes may use extra vertical lanes to preserve precise anchors.
 
 ## Installing on a physical Pixel 9
 

@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.henry.chord/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.henry.chord/.MainActivity
+TotalTime: 2078
+WaitTime: 2079
+Complete

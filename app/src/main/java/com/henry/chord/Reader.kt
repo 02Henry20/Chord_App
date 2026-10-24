@@ -60,14 +60,16 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
     var linksOpen by remember { mutableStateOf(false) }
     val document = remember(song.documentJson) { runCatching { Canonical.decode(song.documentJson).single().document }.getOrNull() }
     val canonical = remember(song.documentJson, song.body) { runCatching { Canonical.decode(song.documentJson).single().document.arrangements.single() }.getOrElse { SheetParser.parse(song.body, "song.cho").document.arrangements.single() } }
-    var fullscreen by rememberSaveable { mutableStateOf(false) }; var scrolling by remember { mutableStateOf(false) }; var speed by rememberSaveable { mutableFloatStateOf(prefs.scrollSpeed) }; val font = prefs.fontSize; val labelMode = prefs.chordLabels; var selectedChord by remember { mutableStateOf<String?>(null) }; var controls by rememberSaveable { mutableStateOf(false) }; var message by remember { mutableStateOf("") }
+    var fullscreen by rememberSaveable { mutableStateOf(false) }; var scrolling by remember { mutableStateOf(false) }; val font = prefs.fontSize; val labelMode = prefs.chordLabels; var selectedChord by remember { mutableStateOf<String?>(null) }; var message by remember { mutableStateOf("") }
+    val speed=rememberScrollSpeed(prefs.scrollSpeed) { value -> scope.launch { Settings(context).saveScrollSpeed(value) } }
+    val appliedSpeed by rememberUpdatedState(speed.applied)
     var showSpeed by rememberSaveable { mutableStateOf(false) }
     var countdown by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current.density
     val dragged by scroll.interactionSource.collectIsDraggedAsState()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val focus = remember { FocusRequester() }
-    fun savePreference(value: Preferences) { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { Settings(context).save(value) } }
+    fun savePreference(change: (Preferences)->Preferences) { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { Settings(context).update(change) } }
     fun setTranspose(value: Int) {
         val selected=value.coerceIn(-24,24); transpose=selected; pendingTransposeWrites++
         scope.launch {
@@ -90,7 +92,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
     }
     val window = (context as? Activity)?.window
     val nativeView=androidx.compose.ui.platform.LocalView.current
-    LaunchedEffect(transpose,labelMode,scrolling,fullscreen,countdown,speed) {
+    LaunchedEffect(transpose,labelMode,scrolling,fullscreen,countdown) {
         // Dispatch after layout: native accessibility clients must see the newly applied semantics.
         withFrameNanos { }; withFrameNanos { }
         val event=android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
@@ -106,14 +108,14 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
         onDispose { window?.let { WindowCompat.getInsetsController(it, it.decorView).show(WindowInsetsCompat.Type.systemBars()) } }
     }
     BackHandler(fullscreen) { fullscreen = false }
-    LaunchedEffect(scrolling, speed, density) {
+    LaunchedEffect(scrolling, density) {
         var previous = withFrameNanos { it }
         while (scrolling) {
             val now = withFrameNanos { it }
             val elapsed = ((now - previous) / 1_000_000_000.0).coerceIn(0.0,0.1)
             previous = now
             if (!scroll.canScrollForward) { scrolling = false; break }
-            scroll.scrollBy((speed * density * elapsed).toFloat())
+            scroll.scrollBy((appliedSpeed * density * elapsed).toFloat())
         }
     }
     val keyContext = KeyContext.from(canonical.originalKey, canonical.tonalMode)
@@ -143,20 +145,7 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
                         IconButton({ setTranspose(transpose-1) }) { Icon(Icons.Outlined.Remove, "Transpose down") }
                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) { Text("KEY $key", fontWeight = FontWeight.Bold, fontSize = 12.sp); Text("${if (transpose > 0) "+" else ""}${transpose} semitones", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         IconButton({ setTranspose(transpose+1) }) { Icon(Icons.Outlined.Add, "Transpose up") }
-                        VerticalDivider(Modifier.height(30.dp))
-                        TextButton({ controls = !controls }) { Text("More", fontSize = 12.sp); Icon(Icons.Outlined.ExpandMore, null, Modifier.size(16.dp)) }
-                    }
-                }
-                if (controls) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        if (prefs.instrument == "Guitar") {
-                            Text("Capo", fontSize = 12.sp)
-                            IconButton({ scope.launch { dao.saveOffsets(ArrangementUserState(song.id,transpose,(song.capo-1).coerceAtLeast(0))) } }, enabled = song.capo > 0) { Icon(Icons.Outlined.Remove, "Lower capo") }
-                            Text("${song.capo}", fontSize = 12.sp)
-                            IconButton({ scope.launch { dao.saveOffsets(ArrangementUserState(song.id,transpose,(song.capo+1).coerceAtMost(12))) } }, enabled = song.capo < 12) { Icon(Icons.Outlined.Add, "Raise capo") }
-                        }
-                        Spacer(Modifier.weight(1f))
-                        TextButton({ setTranspose(0) }) { Text("Reset original key") }
+                        TextButton({ setTranspose(0) },enabled=transpose!=0) { Text("Reset",fontSize=12.sp) }
                     }
                 }
                 if (keyContext == null) Text("Key required for Roman labels. Add it in Edit song.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -166,18 +155,18 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
             }
         }
         if (fullscreen) Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text(song.title,Modifier.weight(1f),maxLines=1,fontWeight=FontWeight.SemiBold)
+            Column(Modifier.weight(1f)) { Text("${if (transpose>0) "+" else ""}$transpose semitones",fontSize=11.sp,color=MaterialTheme.colorScheme.primary,modifier=Modifier.testTag("fullscreen-transpose")); Text(song.title,maxLines=1,fontWeight=FontWeight.SemiBold) }
             IconButton({ setTranspose(transpose-1) }) { Icon(Icons.Outlined.Remove,"Transpose down") }
             Text("KEY $key",fontWeight=FontWeight.Bold,fontSize=12.sp)
             IconButton({ setTranspose(transpose+1) }) { Icon(Icons.Outlined.Add,"Transpose up") }
         }
-        LazyColumn(Modifier.weight(1f).widthIn(max=840.dp).fillMaxWidth().align(Alignment.CenterHorizontally).padding(horizontal = 24.dp).testTag("reader-scroll").semantics { contentDescription="Song sheet"; stateDescription = "${scroll.firstVisibleItemIndex}:${scroll.firstVisibleItemScrollOffset}" }, state = scroll, contentPadding = PaddingValues(vertical = if (fullscreen) 28.dp else 10.dp)) {
+        LazyColumn(Modifier.weight(1f).widthIn(max=840.dp).fillMaxWidth().align(Alignment.CenterHorizontally).padding(horizontal = prefs.sheetMargin.dp).testTag("reader-scroll").semantics { contentDescription="Song sheet"; stateDescription = "${scroll.firstVisibleItemIndex}:${scroll.firstVisibleItemScrollOffset}" }, state = scroll, contentPadding = PaddingValues(vertical = if (fullscreen) 16.dp else 8.dp)) {
             if (fullscreen) item { Text(song.title, fontFamily = Serif, fontSize = 25.sp); Spacer(Modifier.height(24.dp)) }
             canonical.sections.forEach { section ->
-                item(key = "section-${section.id}") { SectionBadge(section) }
-                section.lines.forEach { line -> item(key = "line-${line.id}") {
-                    Box(Modifier.fillMaxWidth().background(sectionBackground(section.type).copy(alpha=.28f)).padding(horizontal=12.dp,vertical=3.dp)) {
-                        key(transpose,labelMode) { CanonicalSheetLine(line, font, label, sounding, { selectedChord = it }, SheetDisplay.BOTH,prefs.lineSpacing,readerChordColor(prefs.chordColor)) }
+                item(key = "section-${section.id}", contentType = "section") { SectionBadge(section,prefs.sectionGap) }
+                section.lines.forEach { line -> item(key = "line-${line.id}", contentType = "sheet-line") {
+                    Box(Modifier.fillMaxWidth().background(sectionBackground(section.type).copy(alpha=.28f)).padding(horizontal=6.dp)) {
+                        key(transpose,labelMode) { CanonicalSheetLine(line, font, label, sounding, { selectedChord = it }, SheetDisplay.BOTH,prefs.lineSpacing,readerChordColor(prefs.chordColor),prefs.chordLineGap,prefs.songLineGap) }
                     }
                 } }
             }
@@ -190,15 +179,15 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
         if (message.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) { Text(message, Modifier.weight(1f), fontSize = 12.sp); TextButton({ message = "" }) { Text("Dismiss") } }
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
             Column {
-                if (showSpeed) Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) { Text(if (countdown > 0) "$countdown…" else "Speed", fontSize = 12.sp); Slider(speed, { speed = it }, Modifier.weight(1f).padding(horizontal = 8.dp).testTag("scroll-speed"), valueRange = 8f..100f,onValueChangeFinished = { savePreference(prefs.copy(scrollSpeed=speed)) }); Text("${speed.toInt()} dp/s", fontSize = 12.sp) }
+                if (showSpeed) Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) { Text(if (countdown > 0) "$countdown…" else "Speed", fontSize = 12.sp); Slider(speed.requested, { speed.requested = it }, Modifier.weight(1f).padding(horizontal = 8.dp).testTag("scroll-speed"), valueRange = 8f..100f); Text("${speed.requested.toInt()} dp/s", fontSize = 12.sp) }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     key(scrolling,countdown) {
                         IconButton({ toggleScroll() }) { Icon(if (scrolling || countdown > 0) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, if (scrolling || countdown > 0) "Pause auto-scroll" else "Start auto-scroll") }
                         Text(if (scrolling) "Playing" else "Paused", fontSize = 11.sp)
                     }
                     Spacer(Modifier.weight(1f))
-                    IconButton({ savePreference(prefs.copy(fontSize=(font-1).coerceAtLeast(14))) }, enabled = font > 14) { Text("A−", fontSize = 14.sp) }
-                    IconButton({ savePreference(prefs.copy(fontSize=(font+1).coerceAtMost(30))) }, enabled = font < 30) { Text("A+", fontSize = 19.sp) }
+                    IconButton({ savePreference { it.copy(fontSize=(it.fontSize-1).coerceAtLeast(14)) } }, enabled = font > 14) { Text("A−", fontSize = 14.sp) }
+                    IconButton({ savePreference { it.copy(fontSize=(it.fontSize+1).coerceAtMost(30)) } }, enabled = font < 30) { Text("A+", fontSize = 19.sp) }
                     IconButton({ fullscreen = !fullscreen }) { Icon(if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, if (fullscreen) "Exit fullscreen" else "Fullscreen reader") }
                 }
 
@@ -206,5 +195,5 @@ fun ReaderScreen(song: Song, prefs: Preferences, songs: List<Song>, dao: ChordDa
         }
     }
     if (linksOpen) SongLinksDialog(song, document?.links ?: MusicLinks(), { linksOpen = false }) { url -> if (!SongLinks.open(context, url)) message = "No app can open this link. Install a browser or the corresponding music app." }
-    if (selectedChord != null) ChordDialog(selectedChord!!, currentContext, prefs.instrument, if (prefs.instrument == "Guitar") song.capo else 0, { selectedChord = null })
+    if (selectedChord != null) ChordDialog(selectedChord!!, currentContext, prefs.instrument, { selectedChord = null })
 }

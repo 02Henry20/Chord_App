@@ -1,0 +1,33 @@
+{
+  "label": "rc3",
+  "version": "1.0.0-rc3",
+  "api": 30,
+  "speedDpPerSecond": 60,
+  "sampleSeconds": 8,
+  "viewport": "Physical size: 1080x2280",
+  "density": "Physical density: 440",
+  "samples": [
+    {
+      "sample": 1,
+      "frames": 499,
+      "over16_67ms": 235,
+      "totalMedianMs": 14.453454,
+      "totalP95Ms": 24.071059,
+      "layoutMedianMs": 0.0969,
+      "layoutP95Ms": 0.4095,
+      "drawMedianMs": 0.5309,
+      "drawP95Ms": 4.1522
+    },
+    {
+      "sample": 2,
+      "frames": 497,
+      "over16_67ms": 231,
+      "totalMedianMs": 14.361887,
+      "totalP95Ms": 23.907902,
+      "layoutMedianMs": 0.062,
+      "layoutP95Ms": 0.3416,
+      "drawMedianMs": 0.4642,
+      "drawP95Ms": 4.2728
+    }
+  ]
+}

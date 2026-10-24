@@ -100,7 +100,7 @@ fun ChordApp(database: ChordDatabase) {
                     composable("home") { HomeScreen(songs, { value -> scope.launch { dao.favorite(value.id, !value.favorite) } }, open, { nav.navigate("library") }, { nav.navigate("editor/0") }, { nav.navigate("import") }) }
                     composable("library") { LibraryScreen(dao, songs, prefs, open, { scope.launch { dao.favorite(it.id, !it.favorite) } }, { nav.navigate("editor/0") }) }
                     composable("import") { ImportScreen(dao, { nav.navigate("library") }) }
-                    composable("settings") { SettingsScreen(prefs, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.clearHistory() } }, database) { p -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { settings.save(p) } } }
+                    composable("settings") { SettingsScreen(prefs, { scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { dao.clearHistory() } }, database) { change -> scope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) { settings.update(change) } } }
                     composable("reader/{id}") { entry ->
                         val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L
                         val song by remember(id) { dao.observeSong(id) }.collectAsState(null, context = kotlinx.coroutines.Dispatchers.Main.immediate)
@@ -136,22 +136,29 @@ fun SectionTitle(title: String, action: String? = null, onClick: () -> Unit = {}
 @Composable
 fun HomeScreen(songs: List<Song>, favorite: (Song) -> Unit, open: (Song) -> Unit, library: () -> Unit, newSong: () -> Unit, onImport: () -> Unit) {
     var pickedId by remember { mutableStateOf<Long?>(null) }
+    var collectionIds by remember { mutableStateOf(emptyList<Long>()) }
     val currentSongs by rememberUpdatedState(songs)
+    fun refresh() {
+        pickedId=currentSongs.filter { it.id!=pickedId }.ifEmpty { currentSongs }.randomOrNull()?.id
+        val refreshed=currentSongs.shuffled().take(4).map { it.id }
+        collectionIds=if (refreshed.firstOrNull()==collectionIds.firstOrNull() && refreshed.size>1) refreshed.drop(1)+refreshed.first() else refreshed
+    }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     // Pick again whenever Home becomes visible; metadata/history emissions do not reshuffle the card.
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) pickedId = currentSongs.randomOrNull()?.id
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) refresh()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(songs.map { it.id }, pickedId) {
-        if (songs.isNotEmpty() && songs.none { it.id == pickedId }) pickedId = songs.random().id
+        if (songs.isNotEmpty() && songs.none { it.id == pickedId }) refresh()
+        if (collectionIds.isEmpty() && songs.isNotEmpty()) collectionIds=songs.shuffled().take(4).map { it.id }
     }
     val picked = songs.firstOrNull { it.id == pickedId }
-    fun shuffle() { pickedId = songs.filter { it.id != pickedId }.ifEmpty { songs }.randomOrNull()?.id }
-    LazyColumn(Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 24.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+    val collection=collectionIds.mapNotNull { id -> songs.firstOrNull { it.id==id } }
+    LazyColumn(Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 24.dp).testTag("home-list"), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 30.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.GraphicEq, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)); Spacer(Modifier.width(8.dp)); Text("chordroom", fontSize = 23.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1).sp)
@@ -165,10 +172,13 @@ fun HomeScreen(songs: List<Song>, favorite: (Song) -> Unit, open: (Song) -> Unit
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("PICK UP & PLAY", fontSize = 10.sp, letterSpacing = 2.sp, color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(Modifier.weight(1f))
-                        IconButton(::shuffle, enabled = songs.size > 1) { Icon(Icons.Outlined.Shuffle, "Shuffle song", tint = MaterialTheme.colorScheme.onPrimary) }
+                        IconButton(::refresh, enabled = songs.size > 1) { Icon(Icons.Outlined.Shuffle, "Shuffle song", tint = MaterialTheme.colorScheme.onPrimary) }
                     }
-                    Spacer(Modifier.height(12.dp)); Text(picked.title, fontFamily = Serif, fontSize = 28.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("picked-song"))
-                    Spacer(Modifier.height(6.dp)); Text(picked.artist, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary)
+                    Row(Modifier.padding(top=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                        SongArtwork(picked,Modifier.size(72.dp).testTag("pick-up-artwork"))
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) { Text(picked.title, fontFamily = Serif, fontSize = 26.sp, color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.testTag("picked-song")); Spacer(Modifier.height(6.dp)); Text(picked.artist, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary) }
+                    }
                     Spacer(Modifier.height(22.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.onPrimary); Spacer(Modifier.width(8.dp)); Text("Open song", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary) }
                 }
             }
@@ -178,7 +188,7 @@ fun HomeScreen(songs: List<Song>, favorite: (Song) -> Unit, open: (Song) -> Unit
             }
             SectionTitle("Your collection", "View all", library)
         }
-        items(songs.sortedByDescending { it.lastOpened }.take(3), key = { it.id }) { SongRow(it, { open(it) }, { favorite(it) }) }
+        items(collection, key = { it.id }) { Box(Modifier.testTag("home-collection-${it.id}")) { SongRow(it, { open(it) }, { favorite(it) }) } }
         if (songs.isEmpty()) item { EmptyState("Your first song starts here", "Write an original or import a chord sheet.", "Write a song", newSong) }
 
     }

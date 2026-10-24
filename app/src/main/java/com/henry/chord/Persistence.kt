@@ -45,6 +45,7 @@ private const val SUMMARY_SELECT = "SELECT a.id, c.title, c.artist, COALESCE(a.o
 
 @Dao
 abstract class ChordDao {
+    @RawQuery abstract suspend fun matchingLibraryIds(query: androidx.sqlite.db.SupportSQLiteQuery): List<Long>
     @RawQuery(observedEntities = [LibraryIndex::class, LibraryGrams::class, SongUserState::class, ArrangementUserState::class, CatalogSong::class, ArrangementRecord::class, LibraryTag::class]) abstract fun libraryResults(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<LibraryHit>>
     @RawQuery(observedEntities = [LibraryIndex::class, LibraryGrams::class, SongUserState::class, ArrangementUserState::class, CatalogSong::class, ArrangementRecord::class, LibraryTag::class]) abstract fun libraryResultCount(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<Int>
     @Query("SELECT text FROM library_excerpts WHERE arrangementId=:id AND instr(normalized,:term)>0 ORDER BY position LIMIT 1") abstract suspend fun excerpt(id: Long, term: String): String?
@@ -81,6 +82,8 @@ abstract class ChordDao {
     @Query("SELECT artworkPath,songUuid FROM arrangements") abstract suspend fun artworkUsage(): List<ArtworkUsage>
     @Query("UPDATE song_user_state SET lastOpened=:timestamp WHERE songUuid=(SELECT songUuid FROM arrangements WHERE id=:id)") abstract suspend fun markPlayed(id: Long, timestamp: Long = System.currentTimeMillis())
     @Query("UPDATE song_user_state SET favorite=:favorite WHERE songUuid=(SELECT songUuid FROM arrangements WHERE id=:id)") abstract suspend fun favorite(id: Long, favorite: Boolean)
+    @Query("UPDATE song_user_state SET favorite=:favorite WHERE songUuid IN (SELECT songUuid FROM arrangements WHERE id IN (:ids))") protected abstract suspend fun favoriteBatch(ids: List<Long>, favorite: Boolean)
+    @Transaction open suspend fun favoriteSelected(ids: List<Long>,favorite: Boolean) { ids.distinct().chunked(400).forEach { favoriteBatch(it,favorite) } }
     @Query("SELECT * FROM setlists ORDER BY id") abstract fun setlists(): Flow<List<Setlist>>
     @Query("SELECT * FROM setlist_entries ORDER BY position") abstract fun entries(): Flow<List<SetlistEntry>>
     @Insert(onConflict = OnConflictStrategy.IGNORE) abstract suspend fun addCatalog(value: CatalogSong): Long
@@ -182,6 +185,7 @@ abstract class ChordDao {
         return id
     }
     @Transaction open suspend fun delete(song: Song) { removeGrams(song.id); removeIndex(song.id); removeArrangement(song.id); removeEmptyCatalog(song.songUuid) }
+    @Transaction open suspend fun deleteSelected(ids: List<Long>) { ids.distinct().forEach { id -> song(id)?.let { delete(it) } } }
     companion object {
         fun identity(doc: SongDocument) = listOf(doc.title, doc.artist, doc.arrangements.single().name).joinToString("\u001F") { Canonical.normalized(it) }
         fun legacyDocument(song: Song): SongDocument {
